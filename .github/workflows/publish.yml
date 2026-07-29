@@ -3,10 +3,12 @@ name: publish
 # Scheduled, immutable, attested snapshot publish (ADR 0028 §4, design doc §4-5).
 #
 # Each run builds the artifact from LIVE public sources and publishes it as an immutable, dated
-# GitHub Release (never reused, never overwritten). A separate `latest` release is then recreated
-# re-pointed at the newest snapshot's assets. Live-source failures degrade rather than fail: a
-# failed/stale source is recorded in manifest.json (absence of a fresh response is NOT a deletion),
-# so the release still ships with whatever succeeded.
+# GitHub Release (never reused, never overwritten). There is no separate `latest` release: GitHub
+# immutable releases permanently reserve a tag name, so a rolling mutable `latest` is impossible —
+# consumers resolve `latest` client-side to the newest snapshot-* release (the af importer's
+# selectNewestSnapshot). Live-source failures degrade rather than fail: a failed/stale source is
+# recorded in manifest.json (absence of a fresh response is NOT a deletion), so the release still
+# ships with whatever succeeded.
 
 on:
   schedule:
@@ -72,21 +74,3 @@ jobs:
             --title "Model-evidence snapshot ${{ steps.tag.outputs.tag }}" \
             --notes "Immutable model-evidence snapshot. Checksums in manifest.json (artifacts[name].sha256); build provenance attested (verify with \`gh attestation verify\`). Schema version is manifest.json.schema_version." \
             dist/*
-
-      - name: Recreate latest pointer
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # `latest` is a rolling pointer to the newest successful snapshot. GitHub *immutable
-          # releases* forbid mutating a published release's assets (HTTP 422 on re-upload/--clobber),
-          # so `latest` can't be a persistent release we edit in place. Instead recreate it fresh each
-          # run: delete the previous `latest` release AND its tag, then create a new one carrying this
-          # snapshot's assets. The dated snapshot-* release is never touched — it stays the immutable,
-          # reproducible pin; only this convenience pointer is rebuilt.
-          if gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release delete latest --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
-          fi
-          gh release create latest dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "latest" \
-            --notes "Rolling pointer to the newest successful snapshot (currently ${{ steps.tag.outputs.tag }}). For reproducibility, pin a dated snapshot-* release instead."
