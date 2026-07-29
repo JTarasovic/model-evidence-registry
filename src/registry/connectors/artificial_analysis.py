@@ -13,6 +13,11 @@ left **out of** ``default_connectors()``; enable it only via ``credentialed_conn
 the review clears and (b) ``ARTIFICIAL_ANALYSIS_API_KEY`` is set. We store only *extracted facts*
 (the reported score strings) and never the raw response bytes, matching the hash-and-facts-only
 posture used for other restrictively-licensed sources.
+
+**Review outcome (issue #3): deferred.** AA's free/Pro tiers are "internal use only; no
+redistribution" — only a paid *commercial* license permits redistribution, and the registry's
+artifact is public. So this connector stays dormant until a commercial license is acquired. See
+https://github.com/JTarasovic/model-evidence-registry/issues/3 for the full finding.
 """
 
 from __future__ import annotations
