@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from registry.connectors.base import Connector, snapshot_from_fetch
 from registry.fetch import (
@@ -19,7 +20,7 @@ from registry.fetch import (
     sha256_hex,
 )
 from registry.normalize import build_crosswalk
-from registry.schema import Artifact, Crosswalk, Record
+from registry.schema import Artifact, Crosswalk, FetchOutcome, Record
 
 
 @dataclass
@@ -68,17 +69,38 @@ def build(
     records: list[Record] = []
     snapshots = []
     for connector in connectors:
-        result = conditional_fetch(connector.url, transport, cache)
+        # A connector may expose static per-source request headers (e.g. an auth key for a
+        # credentialed source); pass them through to the fetch layer, which is the only place a
+        # secret ever appears (never a record/snapshot).
+        auth_fn = getattr(connector, "auth_headers", None)
+        extra_headers = cast("dict[str, str] | None", auth_fn() if callable(auth_fn) else None)
+        result = conditional_fetch(connector.url, transport, cache, extra_headers=extra_headers)
         snapshot = snapshot_from_fetch(connector, result)
         # Pin every record's retrieval/observation time to the build's single timestamp so identical
         # inputs produce byte-identical output (and identical checksums), rather than a fresh
         # wall-clock reading per source.
         snapshot = snapshot.model_copy(update={"retrieved_at": generated_at})
-        snapshots.append(snapshot)
         if result.outcome in ("ok", "not_modified") and result.body:
-            records.extend(connector.parse(result.body, observed_at=generated_at))
-        # On error/stale with no body, the snapshot alone records the failure — no records emitted,
-        # and crucially nothing is *removed*: absence of a fresh response is not evidence of deletion.
+            # A connector parses raw source bytes it does not control. A live source can return HTTP
+            # 200 with a body whose *shape* the parser doesn't expect (e.g. an endpoint that starts
+            # returning a list instead of the documented object). That is a source failure, not a
+            # reason to crash the whole build and drop every other source — so we downgrade this one
+            # source's snapshot to a recorded parse error and emit no records for it, exactly as we
+            # already do for a fetch error. Absence of parseable evidence is never a deletion (§5).
+            try:
+                parsed = connector.parse(result.body, observed_at=generated_at)
+            except Exception as exc:  # noqa: BLE001 - isolate one bad source; record, don't crash
+                snapshot = snapshot.model_copy(
+                    update={
+                        "fetch_outcome": FetchOutcome.ERROR,
+                        "error": f"parse failed: {type(exc).__name__}: {exc}",
+                    }
+                )
+            else:
+                records.extend(parsed)
+        # On error/stale (fetch or parse) nothing is *removed*: absence of a fresh, parseable response
+        # is not evidence a model disappeared — the snapshot alone records the failure.
+        snapshots.append(snapshot)
     # Advisory crosswalk is built from the evidence records' *source-native* ids (before appending
     # the snapshots, which carry no model identity).
     crosswalk = Crosswalk(generated_at=generated_at, entries=build_crosswalk(records))

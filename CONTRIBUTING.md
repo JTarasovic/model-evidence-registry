@@ -55,6 +55,19 @@ and snapshot bookkeeping live in `registry.build`, so connectors stay determinis
 6. Register it in `src/registry/connectors/__init__.py` (`default_connectors()`) and add a **saved
    fixture** plus a test in `tests/` so the parser is deterministic.
 
+### Credentialed / redistribution-restricted sources
+
+A source that needs an API key **or** whose terms restrict redistribution does **not** go in
+`default_connectors()` — that set must stay a fully-public, no-credential baseline. Instead:
+
+- Expose an `auth_headers()` method returning the request header(s); the build layer passes them to
+  `conditional_fetch` (the only place a secret ever appears — never a record or snapshot).
+- Read the key from an env var, defaulting to absent; emit nothing without it.
+- Register it in `credentialed_connectors()`, which self-gates on the env var so a keyless public
+  build never calls it. A live build appends it only when the key is present.
+- Store extracted facts only (no raw bytes) and complete a **licensing/redistribution review before
+  enabling it in the scheduled publish**. `ArtificialAnalysisConnector` is the reference example.
+
 ## Schema changes
 
 Changing a record shape means bumping `SCHEMA_VERSION` in `src/registry/schema.py` per the SemVer

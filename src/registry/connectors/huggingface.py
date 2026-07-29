@@ -29,6 +29,14 @@ class HuggingFaceConnector:
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)
+        if not isinstance(data, dict):
+            # The live HF API returns different shapes per endpoint (e.g. a *list* of datasets). This
+            # connector only understands the leaderboard-export object documented above; anything else
+            # is a source-shape mismatch, surfaced as a clear parse error the build records as a
+            # degraded snapshot rather than crashing the whole run (build.py) — never guessed at.
+            raise ValueError(
+                f"unexpected HuggingFace leaderboard shape: expected a JSON object, got {type(data).__name__}"
+            )
         benchmark_id = data.get("benchmark", data.get("dataset", "unknown"))
         split = data.get("split")
         records: list[Record] = []

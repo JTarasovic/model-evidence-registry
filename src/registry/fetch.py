@@ -88,6 +88,7 @@ def conditional_fetch(
     *,
     retries: int = 2,
     backoff_seconds: float = 0.0,
+    extra_headers: dict[str, str] | None = None,
 ) -> FetchResult:
     """Fetch ``url`` conditionally.
 
@@ -97,7 +98,10 @@ def conditional_fetch(
     (``outcome="stale"`` if one exists) — *absence of a fresh response is never treated as deletion*.
     """
     prior = cache.validators_for(url)
-    headers: dict[str, str] = {}
+    # Static per-source headers (e.g. an auth key for a credentialed source) are seeded first; the
+    # conditional-request validators below are layered on top. Auth secrets live only in the request
+    # headers, never in a snapshot/record — the fetch layer is the only place they appear.
+    headers: dict[str, str] = dict(extra_headers or {})
     if prior.etag:
         headers["If-None-Match"] = prior.etag
     if prior.last_modified:

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from registry.build import build, fixture_transport
-from registry.connectors import default_connectors
+from registry.connectors import credentialed_connectors, default_connectors
 from registry.publish import publish
 
 DEFAULT_FIXTURES = Path(__file__).resolve().parent.parent.parent / "fixtures"
@@ -54,6 +54,9 @@ def main(argv: list[str] | None = None) -> int:
 
     connectors = default_connectors()
     if args.live:
+        # Credentialed sources join only on a live build and only when their key is present — the
+        # fixture build stays a fixed, public-only set (credentialed_connectors() self-gates on env).
+        connectors = connectors + credentialed_connectors()
         transport = _live_transport()
     else:
         transport = fixture_transport(args.fixtures_dir, connectors)
