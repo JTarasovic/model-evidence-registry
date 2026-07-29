@@ -1,0 +1,24 @@
+{
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "benchmark": "swe-bench-verified-open",
+  "version": "2024",
+  "split": "verified",
+  "metric": "resolved",
+  "unit": "percent",
+  "results": [
+    {
+      "model_id": "qwen/qwen3-coder-480b",
+      "value": 41.2,
+      "verified": true,
+      "harness": "sweagent",
+      "source": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified"
+    },
+    {
+      "model_id": "deepseek/deepseek-v3.1",
+      "value": 38.0,
+      "verified": false,
+      "harness": "openhands",
+      "source": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified"
+    }
+  ]
+}

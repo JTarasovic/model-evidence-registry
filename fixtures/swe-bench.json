@@ -1,0 +1,39 @@
+{
+  "_retrieved_at": "2026-07-29T00:00:00+00:00",
+  "leaderboards": [
+    {
+      "name": "Verified",
+      "results": [
+        {
+          "name": "TRAE (Claude Opus 4)",
+          "folder": "20260601_trae",
+          "resolved": 75.2,
+          "date": "2026-06-01",
+          "logs": true,
+          "trajs": true
+        },
+        {
+          "name": "OpenHands (GPT-5)",
+          "folder": "20260610_openhands",
+          "resolved": 71.8,
+          "date": "2026-06-10",
+          "logs": true,
+          "trajs": false
+        }
+      ]
+    },
+    {
+      "name": "Lite",
+      "results": [
+        {
+          "name": "TRAE (Claude Opus 4)",
+          "folder": "20260601_trae_lite",
+          "resolved": 55.0,
+          "date": "2026-06-01",
+          "logs": true,
+          "trajs": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+"""Model-evidence registry (PoC). See ADR 0028 in the Agent Foundry repo."""
+
+from registry.schema import SCHEMA_VERSION
+
+__all__ = ["SCHEMA_VERSION"]

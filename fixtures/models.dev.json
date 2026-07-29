@@ -1,0 +1,32 @@
+{
+  "anthropic": {
+    "id": "anthropic",
+    "name": "Anthropic",
+    "models": {
+      "claude-opus-4": {
+        "id": "claude-opus-4",
+        "developer": "Anthropic",
+        "family": "claude",
+        "release_date": "2026-05-01",
+        "limit": { "context": 1000000, "output": 64000 },
+        "cost": { "input": 5.0, "output": 25.0 },
+        "modalities": { "input": ["text", "image"], "output": ["text"] }
+      }
+    }
+  },
+  "openai": {
+    "id": "openai",
+    "name": "OpenAI",
+    "models": {
+      "gpt-5": {
+        "id": "gpt-5",
+        "developer": "OpenAI",
+        "family": "gpt",
+        "release_date": "2026-03-01",
+        "limit": { "context": 400000, "output": 128000 },
+        "cost": { "input": 1.25, "output": 10.0 },
+        "modalities": { "input": ["text", "image"], "output": ["text"] }
+      }
+    }
+  }
+}
