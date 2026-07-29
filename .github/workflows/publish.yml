@@ -1,0 +1,90 @@
+name: publish
+
+# Scheduled, immutable, attested snapshot publish (ADR 0028 §4, design doc §4-5).
+#
+# Each run builds the artifact from LIVE public sources and publishes it as an immutable, dated
+# GitHub Release (never reused, never overwritten). A separate, mutable `latest` release is then
+# re-pointed at the newest snapshot's assets. Live-source failures degrade rather than fail: a
+# failed/stale source is recorded in manifest.json (absence of a fresh response is NOT a deletion),
+# so the release still ships with whatever succeeded.
+
+on:
+  schedule:
+    # Nightly, 07:17 UTC (odd minute to avoid the top-of-hour scheduler stampede).
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+# Least privilege for keyless build-provenance attestation + release creation.
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Build artifact from live sources
+        run: registry build --live --out dist/
+
+      - name: Compute immutable dated tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base="snapshot-$(date -u +%Y-%m-%d)"
+          tag="$base"
+          # Immutable: if a release already exists for today (manual re-dispatch), disambiguate by
+          # run number rather than overwriting the existing dated release.
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            tag="${base}.${{ github.run_number }}"
+          fi
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          echo "Publishing immutable release: $tag"
+
+      - name: Attest build provenance for artifact files
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: "dist/*"
+
+      - name: Create immutable dated release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Model-evidence snapshot ${{ steps.tag.outputs.tag }}" \
+            --notes "Immutable model-evidence snapshot. Checksums in manifest.json (artifacts[name].sha256); build provenance attested (verify with \`gh attestation verify\`). Schema version is manifest.json.schema_version." \
+            dist/*
+
+      - name: Re-point mutable latest pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # `latest` is a SEPARATE, mutable release that always mirrors the newest snapshot's assets.
+          # It never touches the dated release above, which stays immutable.
+          if ! gh release view latest --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "latest" \
+              --notes "Rolling pointer to the newest successful snapshot. For reproducibility, pin a dated snapshot-* release instead."
+          fi
+          gh release upload latest dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit latest --repo "$GITHUB_REPOSITORY" \
+            --notes "Rolling pointer to the newest successful snapshot (currently ${{ steps.tag.outputs.tag }}). For reproducibility, pin a dated snapshot-* release instead."

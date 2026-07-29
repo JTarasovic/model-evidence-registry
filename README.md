@@ -57,7 +57,27 @@ identical inputs produce identical checksums. The Agent Foundry side consumes `d
 `scripts/model-evidence-import.ts`, which verifies the manifest checksums and emits a **reviewable
 diff** against `model-inventory.yaml` without auto-applying.
 
+## Releases
+
+Snapshots are published as **immutable, dated GitHub Releases** (`snapshot-YYYY-MM-DD`) by the
+scheduled [`publish.yml`](.github/workflows/publish.yml) workflow — never reused, never overwritten.
+Each release carries the full artifact set (`records.json`, `records.schema.json`, `manifest.json`,
+`crosswalk.json`, and one Parquet per record type) plus **build-provenance attestation** (keyless,
+SLSA via GitHub OIDC). A separate, mutable **`latest`** release mirrors the newest snapshot's assets.
+
+Consumers should **pin a dated release** and validate `records.json` against that release's shipped
+`records.schema.json`. Verify integrity with the checksums in `manifest.json`
+(`artifacts[name].sha256`) and the attestation:
+
+```sh
+gh release download snapshot-2026-07-29 --repo JTarasovic/model-evidence-registry
+gh attestation verify records.json --repo JTarasovic/model-evidence-registry
+```
+
+Versioning policy: [`docs/versioning.md`](docs/versioning.md). Contributing (incl. adding a
+connector): [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 ## Status
 
-Local PoC — **not yet scheduled or public**. GitHub Release transport, `latest` pointer,
-attestations/SBOM, scheduling, and broader coverage are later phases (ADR 0028 follow-ups).
+Public, scheduled snapshots with build-provenance attestation (Phase 3). Cosign/SBOM
+signing and broader provider/claim coverage are follow-ups (ADR 0028).
