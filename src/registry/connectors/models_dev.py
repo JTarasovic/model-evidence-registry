@@ -3,13 +3,16 @@
 Parses the ``https://models.dev/api.json`` shape: ``{providerId: {id, name, models: {modelId:
 {...}}}}``. Emits one ``model`` record and one ``provider_offering`` record per model. Capabilities
 that models.dev does not document are **omitted** (preserved as unknown), never emitted as ``False``.
+
+Identifiers are emitted **source-native, verbatim** — the model's key as models.dev states it. Any
+cross-source identity linkage is the advisory crosswalk's job (``normalize.build_crosswalk``), never
+a mutation of the id here.
 """
 
 from __future__ import annotations
 
 import json
 
-from registry.normalize import canonical_model_id, known_aliases
 from registry.schema import (
     ModelRecord,
     PriceObservation,
@@ -34,18 +37,16 @@ class ModelsDevConnector:
         for provider_id, provider in sorted(data.items()):
             models = provider.get("models", {})
             for model_id, model in sorted(models.items()):
-                canonical = canonical_model_id(model_id, provider=provider_id)
                 records.append(
                     ModelRecord(
                         source_id=self.source_id,
                         trust_level=self.trust_level,
-                        id=canonical,
+                        id=model_id,
                         publisher=provider.get("name") or provider_id,
                         developer=model.get("developer"),
                         family=model.get("family"),
                         release_date=model.get("release_date"),
                         version=model.get("version"),
-                        aliases=sorted({model_id, *known_aliases(canonical)} - {canonical}),
                     )
                 )
                 limit = model.get("limit") or {}
@@ -55,7 +56,7 @@ class ModelsDevConnector:
                     ProviderOfferingRecord(
                         source_id=self.source_id,
                         trust_level=self.trust_level,
-                        model_id=canonical,
+                        model_id=model_id,
                         provider=provider_id,
                         availability_state="available",
                         modalities=sorted(set(modalities.get("input", []))),

@@ -21,6 +21,15 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 SCHEMA_VERSION = "0.1.0"
 
+RECORD_TYPES = (
+    "model",
+    "provider_offering",
+    "document",
+    "evaluation_result",
+    "claim",
+    "source_snapshot",
+)
+
 
 class TrustLevel(StrEnum):
     """The source trust ladder (design §5), highest to lowest."""
@@ -162,7 +171,39 @@ class Artifact(BaseModel):
     records: list[Record]
 
 
+class CrosswalkEntry(BaseModel):
+    """One advisory identity mapping: a *source-native* id and a **proposed** canonical id.
+
+    The registry never mutates the ids on the evidence records — every record keeps the identifier
+    exactly as its source emitted it. This crosswalk is a *separate, advisory* sidecar: it suggests
+    which source-native ids are likely the same model, so a consumer can adopt, override, or ignore
+    it. Deciding the final mapping to a curated inventory stays consumer-owned (ADR 0028 authority
+    invariant) — the registry proposes, it does not decide.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(description="Connector that observed this id (e.g. 'models.dev').")
+    raw_id: str = Field(description="The source-native identifier, verbatim.")
+    provider: str | None = None
+    proposed_canonical_id: str = Field(description="Advisory canonical id — a suggestion, not authority.")
+    method: Literal["alias_table", "verbatim"] = Field(
+        description="alias_table = an explicit reviewed alias merged it; verbatim = no merge, id normalized only."
+    )
+
+
+class Crosswalk(BaseModel):
+    """The advisory crosswalk sidecar written to ``crosswalk.json``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str = SCHEMA_VERSION
+    generated_at: str
+    entries: list[CrosswalkEntry]
+
+
 ARTIFACT_ADAPTER: TypeAdapter[Artifact] = TypeAdapter(Artifact)
+CROSSWALK_ADAPTER: TypeAdapter[Crosswalk] = TypeAdapter(Crosswalk)
 
 
 def export_json_schema() -> dict:

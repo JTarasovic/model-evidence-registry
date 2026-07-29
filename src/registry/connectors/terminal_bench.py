@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 
-from registry.normalize import canonical_model_id
 from registry.schema import (
     ComparabilityStatus,
     EvaluationResultRecord,
@@ -37,7 +36,7 @@ class TerminalBenchConnector:
                 EvaluationResultRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=canonical_model_id(entry.get("model", "")),
+                    model_id=entry.get("model", ""),
                     benchmark_id="terminal-bench",
                     benchmark_version=version,
                     split=entry.get("split"),

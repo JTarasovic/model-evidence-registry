@@ -18,7 +18,8 @@ from registry.fetch import (
     conditional_fetch,
     sha256_hex,
 )
-from registry.schema import Artifact, Record
+from registry.normalize import build_crosswalk
+from registry.schema import Artifact, Crosswalk, Record
 
 
 @dataclass
@@ -51,6 +52,7 @@ class FixtureTransport:
 @dataclass
 class BuildResult:
     artifact: Artifact
+    crosswalk: Crosswalk
     snapshots: list  # list[SourceSnapshotRecord]
 
 
@@ -77,9 +79,12 @@ def build(
             records.extend(connector.parse(result.body, observed_at=generated_at))
         # On error/stale with no body, the snapshot alone records the failure — no records emitted,
         # and crucially nothing is *removed*: absence of a fresh response is not evidence of deletion.
+    # Advisory crosswalk is built from the evidence records' *source-native* ids (before appending
+    # the snapshots, which carry no model identity).
+    crosswalk = Crosswalk(generated_at=generated_at, entries=build_crosswalk(records))
     records.extend(snapshots)
     artifact = Artifact(generated_at=generated_at, records=records)
-    return BuildResult(artifact=artifact, snapshots=snapshots)
+    return BuildResult(artifact=artifact, crosswalk=crosswalk, snapshots=snapshots)
 
 
 def fixture_transport(fixtures_dir: Path, connectors: list[Connector]) -> FixtureTransport:

@@ -1,8 +1,17 @@
-"""Serialize a build into the published artifact: JSON + Parquet + JSON Schema + manifest.
+"""Serialize a build into the published artifact.
 
-Determinism matters: JSON is written with ``sort_keys`` and a fixed separator, so identical inputs
-produce byte-identical output (and therefore identical checksums). The manifest is written *last*,
-after every other file's bytes are known, so its checksums describe exactly what landed on disk.
+Two surfaces, on purpose (ADR 0028 §4):
+
+- **JSON is the validated contract.** ``records.json`` (+ the exported ``records.schema.json``) is
+  what the ``af`` importer checksum-verifies and validates against the published JSON Schema. It is
+  sorted-key, byte-deterministic, and diffable — the property the reviewable-diff flow depends on.
+  ``crosswalk.json`` is the advisory identity sidecar (see ``normalize``).
+- **Parquet is the compact/analytical surface**, emitted as a **star schema — one file per record
+  type** (``model.parquet``, ``provider_offering.parquet``, …) rather than a single blob column, so
+  DuckDB can query typed columns directly with no extra artifact and no SQLite/native dependency.
+
+The manifest is written last, after every other file's bytes are known, so its checksums describe
+exactly what landed on disk.
 """
 
 from __future__ import annotations
@@ -15,58 +24,51 @@ import pyarrow.parquet as pq
 
 from registry.build import BuildResult
 from registry.manifest import build_manifest
-from registry.schema import export_json_schema
+from registry.schema import RECORD_TYPES, export_json_schema
 
 RECORDS_JSON = "records.json"
-RECORDS_PARQUET = "records.parquet"
+CROSSWALK_JSON = "crosswalk.json"
 SCHEMA_JSON = "records.schema.json"
 MANIFEST_JSON = "manifest.json"
 
 
-def _records_json_bytes(build: BuildResult) -> bytes:
-    payload = build.artifact.model_dump(mode="json")
+def _json_bytes(payload: object) -> bytes:
     text = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False)
     return (text + "\n").encode("utf-8")
 
 
-def _schema_json_bytes() -> bytes:
-    text = json.dumps(export_json_schema(), indent=2, sort_keys=True)
-    return (text + "\n").encode("utf-8")
-
-
-def _parquet_bytes(build: BuildResult) -> bytes:
-    """One analytical table: a few queryable columns + the full record JSON as ``payload_json``.
-
-    Heterogeneous record types share no wide schema, so the full record is carried as a JSON string
-    (queryable via DuckDB's ``json_extract``) rather than forcing a sparse union of every field.
-    """
-    rows = [r.model_dump(mode="json") for r in build.artifact.records]
-    table = pa.table(
-        {
-            "record_type": [r["record_type"] for r in rows],
-            "source_id": [r["source_id"] for r in rows],
-            "trust_level": [r["trust_level"] for r in rows],
-            "model_id": [r.get("model_id") or r.get("id") for r in rows],
-            "payload_json": [json.dumps(r, sort_keys=True) for r in rows],
-        }
-    )
+def _parquet_bytes(rows: list[dict]) -> bytes:
+    """One typed Parquet table for a single record type (uniform schema within a type)."""
+    table = pa.Table.from_pylist(rows)
     sink = pa.BufferOutputStream()
     pq.write_table(table, sink)
     return sink.getvalue().to_pybytes()
+
+
+def _per_type_parquet(build: BuildResult) -> dict[str, bytes]:
+    """A ``<record_type>.parquet`` per non-empty record type — the star-schema analytical surface."""
+    by_type: dict[str, list[dict]] = {t: [] for t in RECORD_TYPES}
+    for record in build.artifact.records:
+        by_type[record.record_type].append(record.model_dump(mode="json"))
+    files: dict[str, bytes] = {}
+    for record_type, rows in by_type.items():
+        if rows:
+            files[f"{record_type}.parquet"] = _parquet_bytes(rows)
+    crosswalk_rows = [e.model_dump(mode="json") for e in build.crosswalk.entries]
+    if crosswalk_rows:
+        files["crosswalk.parquet"] = _parquet_bytes(crosswalk_rows)
+    return files
 
 
 def publish(build: BuildResult, out_dir: Path) -> dict:
     """Write all artifact files to ``out_dir`` and return the manifest dict."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    records_bytes = _records_json_bytes(build)
-    schema_bytes = _schema_json_bytes()
-    parquet_bytes = _parquet_bytes(build)
-
-    artifact_files = {
-        RECORDS_JSON: records_bytes,
-        SCHEMA_JSON: schema_bytes,
-        RECORDS_PARQUET: parquet_bytes,
+    artifact_files: dict[str, bytes] = {
+        RECORDS_JSON: _json_bytes(build.artifact.model_dump(mode="json")),
+        CROSSWALK_JSON: _json_bytes(build.crosswalk.model_dump(mode="json")),
+        SCHEMA_JSON: _json_bytes(export_json_schema()),
+        **_per_type_parquet(build),
     }
     for name, data in artifact_files.items():
         (out_dir / name).write_bytes(data)
@@ -76,6 +78,5 @@ def publish(build: BuildResult, out_dir: Path) -> dict:
         snapshots=build.snapshots,
         artifact_files=artifact_files,
     )
-    manifest_bytes = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
-    (out_dir / MANIFEST_JSON).write_bytes(manifest_bytes)
+    (out_dir / MANIFEST_JSON).write_bytes(_json_bytes(manifest))
     return manifest

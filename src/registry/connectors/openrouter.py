@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 
-from registry.normalize import canonical_model_id
 from registry.schema import (
     ModelRecord,
     PriceObservation,
@@ -43,22 +42,20 @@ class OpenRouterConnector:
         records: list[Record] = []
         for entry in sorted(data.get("data", []), key=lambda e: e.get("id", "")):
             raw_id = entry.get("id", "")
-            canonical = canonical_model_id(raw_id)
             pricing = entry.get("pricing") or {}
             architecture = entry.get("architecture") or {}
             records.append(
                 ModelRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    id=canonical,
-                    aliases=sorted({raw_id} - {canonical}),
+                    id=raw_id,
                 )
             )
             records.append(
                 ProviderOfferingRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=canonical,
+                    model_id=raw_id,
                     provider="openrouter",
                     availability_state="available",
                     modalities=sorted(set(architecture.get("input_modalities", []))),

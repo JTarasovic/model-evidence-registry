@@ -34,8 +34,9 @@ def test_models_dev_emits_model_and_offering(fixtures_dir: Path) -> None:
     records = ModelsDevConnector().parse(_body(fixtures_dir, "models.dev"))
     models = [r for r in records if isinstance(r, ModelRecord)]
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    assert {m.id for m in models} == {"anthropic/claude-opus-4", "openai/gpt-5"}
-    opus = next(o for o in offerings if o.model_id == "anthropic/claude-opus-4")
+    # Source-native ids, verbatim — no canonicalization mutation in the connector.
+    assert {m.id for m in models} == {"claude-opus-4", "gpt-5"}
+    opus = next(o for o in offerings if o.model_id == "claude-opus-4")
     assert opus.context_window_tokens == 1000000
     assert opus.price is not None and opus.price.input_usd_per_mtok == 5.0
 

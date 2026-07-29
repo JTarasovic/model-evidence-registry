@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 
-from registry.normalize import canonical_model_id
 from registry.schema import (
     ComparabilityStatus,
     EvaluationResultRecord,
@@ -39,7 +38,7 @@ class HuggingFaceConnector:
                 EvaluationResultRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=canonical_model_id(entry.get("model_id", "")),
+                    model_id=entry.get("model_id", ""),
                     benchmark_id=benchmark_id,
                     benchmark_version=data.get("version"),
                     split=split,
