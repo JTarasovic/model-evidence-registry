@@ -1,24 +1,41 @@
-{
-  "dataset": "SWE-bench/SWE-bench_Verified",
-  "benchmark": "swe-bench-verified-open",
-  "version": "2024",
-  "split": "verified",
-  "metric": "resolved",
-  "unit": "percent",
-  "results": [
-    {
-      "model_id": "qwen/qwen3-coder-480b",
-      "value": 41.2,
-      "verified": true,
-      "harness": "sweagent",
-      "source": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified"
+[
+  {
+    "rank": 1,
+    "filename": ".eval_results/hle.yaml",
+    "value": 56,
+    "verified": false,
+    "source": {
+      "url": "https://huggingface.co/moonshotai/Kimi-K3",
+      "name": "Model Card",
+      "isExternal": false
     },
-    {
-      "model_id": "deepseek/deepseek-v3.1",
-      "value": 38.0,
-      "verified": false,
-      "harness": "openhands",
-      "source": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified"
-    }
-  ]
-}
+    "modelId": "moonshotai/Kimi-K3",
+    "lower_is_better": false
+  },
+  {
+    "rank": 2,
+    "filename": ".eval_results/hle.yaml",
+    "value": 54.7,
+    "verified": false,
+    "source": {
+      "url": "https://huggingface.co/zai-org/GLM-5.2",
+      "name": "Model Card",
+      "isExternal": false
+    },
+    "modelId": "zai-org/GLM-5.2",
+    "lower_is_better": false
+  },
+  {
+    "rank": 3,
+    "filename": ".eval_results/hle_with_tools.yaml",
+    "value": 54,
+    "verified": false,
+    "source": {
+      "url": "https://huggingface.co/moonshotai/Kimi-K2.6",
+      "name": "Model Card",
+      "isExternal": false
+    },
+    "modelId": "moonshotai/Kimi-K2.6",
+    "lower_is_better": false
+  }
+]

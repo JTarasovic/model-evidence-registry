@@ -32,10 +32,12 @@ agent/reasoning settings.
 
 - **models.dev** — offering/pricing/capability/context evidence (MIT).
 - **OpenRouter** — availability/pricing/context **evidence only**, never a benchmark authority.
-- **Hugging Face** — leaderboard eval data for open-weight models.
-- **SWE-bench** `data/leaderboards.json` — official resolved-% (rows without logs+trajs → `claim`).
+- **Hugging Face** — the public `cais/hle` leaderboard API, with source-native evaluation
+  configuration filenames retained as distinct result splits.
+- **SWE-bench** `master/data/leaderboards.json` — official resolved-% (rows without logs+trajs → `claim`).
   Stored **hash + facts only** (the site repo is NOASSERTION-licensed).
-- **Terminal-Bench** — agentic terminal-task benchmark (Apache-2.0). LiveCodeBench is deferred (stale).
+- **Terminal-Bench 2.0** — official versioned leaderboard rows (Apache-2.0); compound submissions remain
+  distinct. LiveCodeBench is deferred (stale).
 
 See [`docs/eee-evaluation.md`](docs/eee-evaluation.md) for the Every Eval Ever qualification finding.
 

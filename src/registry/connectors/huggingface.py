@@ -1,9 +1,8 @@
-"""Hugging Face leaderboard connector — eval results for open-weight models.
+"""Hugging Face's public HLE leaderboard connector.
 
-Strong for open-weight models, weak/absent for closed/API models (source-inventory.md) — so results
-here are ``benchmark_maintainer_leaderboard`` trust and ``needs_review`` comparability by default.
-Parses a leaderboard-export shape: ``{dataset, benchmark, split, results: [{model_id, value,
-verified, source, harness}]}``.
+The documented ``/leaderboard`` endpoint returns ranked rows for one benchmark dataset.  Its
+``filename`` is the source-native evaluation configuration, so it is kept as the record split rather
+than treating results from different configurations (for example, with-tools) as interchangeable.
 """
 
 from __future__ import annotations
@@ -17,44 +16,41 @@ from registry.schema import (
     TrustLevel,
 )
 
-API_URL = "https://huggingface.co/api/datasets/{dataset}/leaderboard"
+DATASET_ID = "cais/hle"
+API_URL = f"https://huggingface.co/api/datasets/{DATASET_ID}/leaderboard"
 
 
 class HuggingFaceConnector:
     source_id = "huggingface"
-    url = "https://huggingface.co/api/datasets"
+    url = API_URL
     license = "Per-dataset"
     parser_version = "1"
     trust_level = TrustLevel.BENCHMARK_MAINTAINER_LEADERBOARD
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)
-        if not isinstance(data, dict):
-            # The live HF API returns different shapes per endpoint (e.g. a *list* of datasets). This
-            # connector only understands the leaderboard-export object documented above; anything else
-            # is a source-shape mismatch, surfaced as a clear parse error the build records as a
-            # degraded snapshot rather than crashing the whole run (build.py) — never guessed at.
+        if not isinstance(data, list) or not all(isinstance(entry, dict) for entry in data):
             raise ValueError(
-                f"unexpected HuggingFace leaderboard shape: expected a JSON object, got {type(data).__name__}"
+                "unexpected HuggingFace leaderboard shape: expected a JSON array of leaderboard rows"
             )
-        benchmark_id = data.get("benchmark", data.get("dataset", "unknown"))
-        split = data.get("split")
         records: list[Record] = []
-        for entry in sorted(data.get("results", []), key=lambda e: e.get("model_id", "")):
+        for entry in sorted(data, key=lambda entry: (str(entry.get("modelId", "")), str(entry.get("filename", "")))):
             verified = entry.get("verified")
+            source = entry.get("source")
+            provenance_url = source.get("url") if isinstance(source, dict) else None
             records.append(
                 EvaluationResultRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=entry.get("model_id", ""),
-                    benchmark_id=benchmark_id,
-                    benchmark_version=data.get("version"),
-                    split=split,
-                    metric=data.get("metric", "score"),
+                    model_id=entry.get("modelId", ""),
+                    benchmark_id=DATASET_ID,
+                    # The endpoint has no benchmark version field. Its filename identifies the
+                    # submitted evaluation configuration and must remain distinct from other rows.
+                    split=entry.get("filename"),
+                    metric="score",
                     value=float(entry["value"]),
-                    unit=data.get("unit"),
-                    harness=entry.get("harness"),
-                    provenance_url=entry.get("source"),
+                    direction=("lower_is_better" if entry.get("lower_is_better") else "higher_is_better"),
+                    provenance_url=provenance_url,
                     comparability_status=(
                         ComparabilityStatus.COMPARABLE
                         if verified

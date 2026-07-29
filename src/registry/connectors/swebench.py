@@ -25,7 +25,7 @@ from registry.schema import (
     TrustLevel,
 )
 
-LEADERBOARD_URL = "https://raw.githubusercontent.com/SWE-bench/swe-bench.github.io/main/data/leaderboards.json"
+LEADERBOARD_URL = "https://raw.githubusercontent.com/SWE-bench/swe-bench.github.io/master/data/leaderboards.json"
 
 
 class SweBenchConnector:

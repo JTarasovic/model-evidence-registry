@@ -64,16 +64,24 @@ def test_terminal_bench_preserves_version_identity(fixtures_dir: Path) -> None:
         for r in TerminalBenchConnector().parse(_body(fixtures_dir, "terminal-bench"))
         if isinstance(r, EvaluationResultRecord)
     ]
-    assert evals and all(e.benchmark_version == "2.1" for e in evals)
+    assert evals and all(e.benchmark_version == "2.0" for e in evals)
     assert all(e.benchmark_id == "terminal-bench" for e in evals)
+    assert all(e.unit == "fraction" for e in evals)
+    assert any(e.model_id == "openai/gpt-oss-20b" for e in evals)
+    # A submitted run with multiple models remains one compound source-native observation.
+    multi_model = next(e for e in evals if e.agent == "LemonHarness")
+    assert multi_model.model_id == "lemonharness__gemini 3.1 pro preview,gpt-5.3-codex"
 
 
-def test_huggingface_verified_flag_sets_comparability(fixtures_dir: Path) -> None:
+def test_huggingface_parses_live_leaderboard_shape_without_merging_configs(fixtures_dir: Path) -> None:
     evals = [
         r
         for r in HuggingFaceConnector().parse(_body(fixtures_dir, "huggingface"))
         if isinstance(r, EvaluationResultRecord)
     ]
     by_model = {e.model_id: e for e in evals}
-    assert by_model["qwen/qwen3-coder-480b"].comparability_status == ComparabilityStatus.COMPARABLE
-    assert by_model["deepseek/deepseek-v3.1"].comparability_status == ComparabilityStatus.NEEDS_REVIEW
+    assert set(by_model) == {"moonshotai/Kimi-K3", "moonshotai/Kimi-K2.6", "zai-org/GLM-5.2"}
+    assert all(e.benchmark_id == "cais/hle" for e in evals)
+    assert by_model["moonshotai/Kimi-K2.6"].split == ".eval_results/hle_with_tools.yaml"
+    assert by_model["moonshotai/Kimi-K3"].provenance_url == "https://huggingface.co/moonshotai/Kimi-K3"
+    assert all(e.comparability_status == ComparabilityStatus.NEEDS_REVIEW for e in evals)

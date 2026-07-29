@@ -13,6 +13,7 @@ from registry.connectors.artificial_analysis import (
     ArtificialAnalysisConnector,
 )
 from registry.connectors.huggingface import HuggingFaceConnector
+from registry.connectors.terminal_bench import TerminalBenchConnector
 from registry.fetch import FetchCache, RawResponse, sha256_hex
 from registry.schema import ClaimRecord, FetchOutcome, SourceSnapshotRecord, TrustLevel
 
@@ -78,10 +79,14 @@ def test_credentialed_connectors_gate_on_env(monkeypatch: pytest.MonkeyPatch) ->
 # --- HuggingFace shape guard -------------------------------------------------------------------
 
 
-def test_huggingface_rejects_non_dict_body() -> None:
-    # The real HF endpoint can return a *list*; that must be a clear parse error, not an AttributeError.
+def test_huggingface_rejects_non_leaderboard_body() -> None:
     with pytest.raises(ValueError, match="unexpected HuggingFace leaderboard shape"):
-        HuggingFaceConnector().parse(b'[{"id": "some-dataset"}]')
+        HuggingFaceConnector().parse(b'{"id": "some-dataset"}')
+
+
+def test_terminal_bench_rejects_page_without_embedded_rows() -> None:
+    with pytest.raises(ValueError, match="unexpected Terminal-Bench leaderboard shape"):
+        TerminalBenchConnector().parse(b"<html>not a leaderboard</html>")
 
 
 # --- build robustness: one source's parse failure degrades, never crashes ----------------------
