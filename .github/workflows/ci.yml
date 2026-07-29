@@ -12,23 +12,26 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - name: Install (with dev extras)
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v9
+        with:
+          enable-cache: true
+
+      - name: Install locked development environment
+        run: uv sync --locked --all-extras
 
       - name: Ruff (lint)
-        run: ruff check .
+        run: uv run --locked ruff check .
 
       - name: Pyright (typecheck)
-        run: pyright
+        run: uv run --locked pyright
 
       - name: Pytest (deterministic, fixtures only — no network)
-        run: pytest
+        run: uv run --locked pytest
