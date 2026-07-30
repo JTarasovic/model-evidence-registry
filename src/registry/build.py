@@ -110,8 +110,19 @@ def shared_source_policies(
     ]
 
 
-def _fetch_connector(
+def connector_urls(connector: Connector) -> tuple[str, ...]:
+    """Return a connector's finite source URL set, preserving its declared order."""
+    urls = getattr(connector, "urls", None)
+    if urls is None:
+        return (connector.url,)
+    if not isinstance(urls, tuple) or not urls or not all(isinstance(url, str) and url for url in urls):
+        raise TypeError(f"{connector.source_id}.urls must be a non-empty tuple of URLs")
+    return urls
+
+
+def _fetch_url(
     connector: Connector,
+    url: str,
     transport: Transport,
     cache: FetchCache,
     policy: FetchPolicy,
@@ -122,7 +133,7 @@ def _fetch_connector(
     auth_fn = getattr(connector, "auth_headers", None)
     extra_headers = cast("dict[str, str] | None", auth_fn() if callable(auth_fn) else None)
     return conditional_fetch(
-        connector.url,
+        url,
         transport,
         cache,
         retries=policy.retries,
@@ -133,8 +144,8 @@ def _fetch_connector(
         source_budget_seconds=policy.source_budget_seconds,
         extra_headers=extra_headers,
         clock=clock,
-        request_gate=lambda deadline: limiter.acquire(policy, connector.url, deadline),
-        request_release=lambda: limiter.release(policy, connector.url),
+        request_gate=lambda deadline: limiter.acquire(policy, url, deadline),
+        request_release=lambda: limiter.release(policy, url),
     )
 
 
@@ -159,12 +170,22 @@ def build(
     records: list[Record] = []
     snapshots = []
     policies = shared_source_policies(connectors, [fetch_policy_for(connector) for connector in connectors])
+    # Fixtures never contact an upstream service, so source spacing would only make deterministic
+    # tests and offline builds artificially slow. Concurrency limits still apply to exercise the
+    # same bounded scheduler shape as a live build.
+    if isinstance(transport, FixtureTransport):
+        policies = [replace(policy, min_interval_seconds=0.0) for policy in policies]
     limiter = SourceRateLimiter(current_clock)
     # A finite worker pool bounds all in-flight transport requests.  At most each source policy's
     # request concurrency is submitted at once, so a rate-delayed provider cannot fill the pool and
     # make unrelated hosts wait behind its sleeps.  Results are consumed below in declared connector
     # order, not completion order, so the artifact and manifest remain stable.
-    pending = list(enumerate(zip(connectors, policies, strict=True)))
+    jobs = [
+        (connector, url, policy)
+        for connector, policy in zip(connectors, policies, strict=True)
+        for url in connector_urls(connector)
+    ]
+    pending = list(enumerate(jobs))
     results_by_index: dict[int, FetchResult] = {}
     active_by_source: dict[str, int] = {}
     with ThreadPoolExecutor(max_workers=global_concurrency, thread_name_prefix="registry-fetch") as executor:
@@ -174,17 +195,17 @@ def build(
                 eligible_index = next(
                     (
                         index
-                        for index, (_, (connector, policy)) in enumerate(pending)
-                        if active_by_source.get(policy.key_for(connector.url), 0) < policy.max_concurrency
+                        for index, (_, (connector, url, policy)) in enumerate(pending)
+                        if active_by_source.get(policy.key_for(url), 0) < policy.max_concurrency
                     ),
                     None,
                 )
                 if eligible_index is None:
                     break
-                connector_index, (connector, policy) = pending.pop(eligible_index)
-                source_key = policy.key_for(connector.url)
+                connector_index, (connector, url, policy) = pending.pop(eligible_index)
+                source_key = policy.key_for(url)
                 active_by_source[source_key] = active_by_source.get(source_key, 0) + 1
-                future = executor.submit(_fetch_connector, connector, transport, cache, policy, limiter, current_clock)
+                future = executor.submit(_fetch_url, connector, url, transport, cache, policy, limiter, current_clock)
                 futures[future] = (connector_index, source_key)
             if not futures:
                 raise RuntimeError("fetch scheduler found no eligible connector")
@@ -194,9 +215,9 @@ def build(
                 active_by_source[source_key] -= 1
                 results_by_index[connector_index] = future.result()
 
-    results = [results_by_index[index] for index in range(len(connectors))]
+    results = [results_by_index[index] for index in range(len(jobs))]
 
-    for connector, result in zip(connectors, results, strict=True):
+    for (connector, _url, _policy), result in zip(jobs, results, strict=True):
         snapshot = snapshot_from_fetch(connector, result)
         # Pin every record's retrieval/observation time to the build's single timestamp so identical
         # inputs produce byte-identical output (and identical checksums), rather than a fresh
@@ -234,10 +255,19 @@ def build(
 def fixture_transport(fixtures_dir: Path, connectors: list[Connector]) -> FixtureTransport:
     return FixtureTransport(
         fixtures_dir=fixtures_dir,
-        url_to_fixture={c.url: fixture_filename(c) for c in connectors},
+        url_to_fixture={
+            url: fixture_filename(connector, url)
+            for connector in connectors
+            for url in connector_urls(connector)
+        },
     )
 
 
-def fixture_filename(connector: Connector) -> str:
+def fixture_filename(connector: Connector, url: str | None = None) -> str:
     """Return a connector's saved-response filename, defaulting to its historical JSON convention."""
+    fixture_filenames = getattr(connector, "fixture_filenames", None)
+    if fixture_filenames is not None:
+        if not isinstance(fixture_filenames, dict) or url is None or not isinstance(fixture_filenames.get(url), str):
+            raise TypeError(f"{connector.source_id}.fixture_filenames must map every source URL to a filename")
+        return fixture_filenames[url]
     return str(getattr(connector, "fixture_filename", f"{connector.source_id}.json"))

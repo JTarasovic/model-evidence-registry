@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from registry.build import fixture_filename
+from registry.build import build, connector_urls, fixture_filename, fixture_transport
 from registry.connectors import default_connectors
 from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.base import Connector
@@ -11,6 +11,7 @@ from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.github_models import GitHubModelsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.groq_docs import GroqDocsConnector
+from registry.connectors.hf_model_cards import MODEL_REPOSITORIES, HfModelCardsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
@@ -25,21 +26,23 @@ from registry.schema import (
     EvaluationResultRecord,
     ModelRecord,
     ProviderOfferingRecord,
+    SourceSnapshotRecord,
     TrustLevel,
 )
 
 
-def _body(fixtures_dir: Path, connector: Connector) -> bytes:
-    return (fixtures_dir / fixture_filename(connector)).read_bytes()
+def _body(fixtures_dir: Path, connector: Connector, url: str | None = None) -> bytes:
+    return (fixtures_dir / fixture_filename(connector, url)).read_bytes()
 
 
 def test_all_connectors_parse_deterministically(fixtures_dir: Path) -> None:
     for connector in default_connectors():
-        body = _body(fixtures_dir, connector)
-        first = [r.model_dump(mode="json") for r in connector.parse(body)]
-        second = [r.model_dump(mode="json") for r in connector.parse(body)]
-        assert first == second, f"{connector.source_id} parse is not deterministic"
-        assert first, f"{connector.source_id} produced no records"
+        for url in connector_urls(connector):
+            body = _body(fixtures_dir, connector, url)
+            first = [r.model_dump(mode="json") for r in connector.parse(body)]
+            second = [r.model_dump(mode="json") for r in connector.parse(body)]
+            assert first == second, f"{connector.source_id} ({url}) parse is not deterministic"
+            assert first, f"{connector.source_id} ({url}) produced no records"
 
 
 def test_models_dev_emits_model_and_offering(fixtures_dir: Path) -> None:
@@ -253,6 +256,44 @@ def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures
     assert by_model["gpt-oss-120b"].price.input_usd_per_mtok == 0.35
     assert by_model["gpt-oss-120b"].price.output_usd_per_mtok == 0.75
     assert all(o.provider == "Cerebras" for o in offerings)
+
+
+def test_hf_model_cards_emit_revision_pinned_documents_and_hub_offerings(fixtures_dir: Path) -> None:
+    connector = HfModelCardsConnector()
+    records = [
+        record
+        for url in connector.urls
+        for record in connector.parse(_body(fixtures_dir, connector, url), observed_at="2026-07-30T00:00:00+00:00")
+    ]
+
+    docs = [record for record in records if isinstance(record, DocumentRecord)]
+    assert len(docs) == len(connector.urls)
+    assert {document.url for document in docs} == set(connector.urls)
+    assert all(document.kind == "model_card" for document in docs)
+    assert all(document.redistribution_policy == "hash_and_facts_only" for document in docs)
+    assert all(document.retrieved_at == "2026-07-30T00:00:00+00:00" for document in docs)
+    by_url = {document.url: document for document in docs}
+    assert by_url["https://huggingface.co/api/models/Qwen/Qwen3.6-27B"].revision == (
+        "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
+    )
+
+    offerings = [record for record in records if isinstance(record, ProviderOfferingRecord)]
+    assert {offering.model_id for offering in offerings} == set(MODEL_REPOSITORIES)
+    assert all(offering.provider == "Hugging Face Hub" for offering in offerings)
+    assert all(offering.availability_state == "available" for offering in offerings)
+
+
+def test_hf_model_cards_fixture_build_keeps_one_snapshot_per_card(fixtures_dir: Path) -> None:
+    connector = HfModelCardsConnector()
+    result = build(
+        [connector],
+        fixture_transport(fixtures_dir, [connector]),
+        now="2026-07-30T00:00:00+00:00",
+    )
+    snapshots = [record for record in result.artifact.records if isinstance(record, SourceSnapshotRecord)]
+    documents = [record for record in result.artifact.records if isinstance(record, DocumentRecord)]
+    assert [snapshot.url for snapshot in snapshots] == list(connector.urls)
+    assert len(documents) == len(connector.urls)
 
 
 def test_swebench_keeps_splits_separate_and_uncrosswalked(fixtures_dir: Path) -> None:

@@ -19,6 +19,10 @@ from registry.schema import FetchOutcome, Record, SourceSnapshotRecord, TrustLev
 class Connector(Protocol):
     source_id: str
     url: str
+    # A connector may optionally expose ``urls: tuple[str, ...]`` for a finite, configured set of
+    # same-shaped source documents.  The build orchestrator fetches and parses each URL separately,
+    # retaining an independent snapshot for every response.  ``url`` remains the primary URL for
+    # backwards-compatible single-document connectors.
     license: str
     parser_version: str
     #: Trust level for the *snapshot* record; per-record trust is set inside ``parse``.

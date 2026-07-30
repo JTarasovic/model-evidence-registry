@@ -38,6 +38,8 @@ agent/reasoning settings.
 - **OpenRouter** — availability/pricing/context **evidence only**, never a benchmark authority.
 - **Hugging Face** — the public `cais/hle` leaderboard API, with source-native evaluation
   configuration filenames retained as distinct result splits.
+- **Hugging Face model cards** — a finite, consumer-inventory-driven set of official model-card API
+  responses, pinned to source revisions and represented as hash + extracted facts only.
 - **SWE-bench** `master/data/leaderboards.json` — official resolved-% (rows without logs+trajs → `claim`).
   Stored **hash + facts only** (the site repo is NOASSERTION-licensed).
 - **Terminal-Bench 2.0** — official versioned leaderboard rows (Apache-2.0); compound submissions remain
