@@ -8,6 +8,7 @@ from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.base import Connector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.models_dev import ModelsDevConnector
+from registry.connectors.openai_docs import OpenAIDocsConnector
 from registry.connectors.swebench import SweBenchConnector
 from registry.connectors.terminal_bench import TerminalBenchConnector
 from registry.fetch import sha256_hex
@@ -64,6 +65,27 @@ def test_anthropic_docs_emits_hash_only_document_and_direct_api_offerings(fixtur
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
     assert {o.model_id for o in offerings} == {"claude-haiku-4-5", "claude-opus-4-6", "claude-sonnet-4-6"}
     assert all(o.provider == "Anthropic" for o in offerings)
+    assert all(o.availability_state == "available" for o in offerings)
+
+
+def test_openai_docs_emits_hash_only_document_and_direct_api_offerings(fixtures_dir: Path) -> None:
+    connector = OpenAIDocsConnector()
+    body = _body(fixtures_dir, connector)
+    records = connector.parse(body, observed_at="2026-07-30T00:00:00+00:00")
+
+    docs = [r for r in records if isinstance(r, DocumentRecord)]
+    assert len(docs) == 1
+    document = docs[0]
+    assert document.url == connector.url
+    assert document.revision == "fixture-revision-20260730"
+    assert document.content_sha256 == sha256_hex(body)
+    assert document.retrieved_at == "2026-07-30T00:00:00+00:00"
+    assert document.redistribution_policy == "hash_and_facts_only"
+    assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
+
+    offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
+    assert {o.model_id for o in offerings} == {"gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"}
+    assert all(o.provider == "OpenAI" for o in offerings)
     assert all(o.availability_state == "available" for o in offerings)
 
 

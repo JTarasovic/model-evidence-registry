@@ -10,6 +10,7 @@ from registry.connectors.artificial_analysis import ArtificialAnalysisConnector
 from registry.connectors.base import Connector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.models_dev import ModelsDevConnector
+from registry.connectors.openai_docs import OpenAIDocsConnector
 from registry.connectors.openrouter import OpenRouterConnector
 from registry.connectors.swebench import SweBenchConnector
 from registry.connectors.terminal_bench import TerminalBenchConnector
@@ -20,6 +21,7 @@ __all__ = [
     "Connector",
     "HuggingFaceConnector",
     "ModelsDevConnector",
+    "OpenAIDocsConnector",
     "OpenRouterConnector",
     "SweBenchConnector",
     "TerminalBenchConnector",
@@ -30,6 +32,7 @@ def default_connectors() -> list[Connector]:
     """The PoC connector set (public sources only, no credentials)."""
     return [
         AnthropicDocsConnector(),
+        OpenAIDocsConnector(),
         ModelsDevConnector(),
         OpenRouterConnector(),
         HuggingFaceConnector(),
