@@ -6,6 +6,7 @@ from registry.build import fixture_filename
 from registry.connectors import default_connectors
 from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.base import Connector
+from registry.connectors.cerebras_models import CerebrasModelsConnector
 from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.github_models import GitHubModelsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
@@ -226,6 +227,32 @@ def test_github_models_emits_hash_only_document_and_catalog_offerings(fixtures_d
     assert by_model["openai/gpt-4.1"].context_window_tokens == 1048576
     assert by_model["openai/gpt-4.1"].max_output_tokens == 32768
     assert all(o.provider == "GitHub Models" for o in offerings)
+
+
+def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures_dir: Path) -> None:
+    connector = CerebrasModelsConnector()
+    body = _body(fixtures_dir, connector)
+    records = connector.parse(body, observed_at="2026-07-30T00:00:00+00:00")
+
+    docs = [r for r in records if isinstance(r, DocumentRecord)]
+    assert len(docs) == 1
+    document = docs[0]
+    assert document.url == connector.url
+    assert document.content_sha256 == sha256_hex(body)
+    assert document.retrieved_at == "2026-07-30T00:00:00+00:00"
+    assert document.redistribution_policy == "hash_and_facts_only"
+    assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
+
+    offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
+    by_model = {offering.model_id: offering for offering in offerings}
+    assert set(by_model) == {"gemma-4-31b", "gpt-oss-120b", "zai-glm-4.7"}
+    assert by_model["gemma-4-31b"].modalities == ["text+vision"]
+    assert by_model["gpt-oss-120b"].context_window_tokens == 131072
+    assert by_model["gpt-oss-120b"].max_output_tokens == 40960
+    assert by_model["gpt-oss-120b"].price is not None
+    assert by_model["gpt-oss-120b"].price.input_usd_per_mtok == 0.35
+    assert by_model["gpt-oss-120b"].price.output_usd_per_mtok == 0.75
+    assert all(o.provider == "Cerebras" for o in offerings)
 
 
 def test_swebench_keeps_splits_separate_and_uncrosswalked(fixtures_dir: Path) -> None:

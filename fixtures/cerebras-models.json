@@ -1,0 +1,29 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "zai-glm-4.7",
+      "pricing": {"prompt": "0.00000225", "completion": "0.00000275"},
+      "architecture": {"modality": "text"},
+      "limits": {"max_context_length": 131072, "max_completion_tokens": 40960},
+      "deprecated": false,
+      "preview": true
+    },
+    {
+      "id": "gemma-4-31b",
+      "pricing": {"prompt": "0.00000099", "completion": "0.00000149"},
+      "architecture": {"modality": "text+vision"},
+      "limits": {"max_context_length": 131072, "max_completion_tokens": 40960},
+      "deprecated": false,
+      "preview": false
+    },
+    {
+      "id": "gpt-oss-120b",
+      "pricing": {"prompt": "0.00000035", "completion": "0.00000075"},
+      "architecture": {"modality": "text"},
+      "limits": {"max_context_length": 131072, "max_completion_tokens": 40960},
+      "deprecated": false,
+      "preview": false
+    }
+  ]
+}

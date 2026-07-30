@@ -32,6 +32,8 @@ agent/reasoning settings.
 
 - **Anthropic Models overview** — official direct-Claude-API availability evidence. Documentation is
   represented as **hash + extracted facts only**, not re-hosted.
+- **Cerebras public model catalog** — official keyless availability, modality, token-limit, and pricing
+  evidence; represented as **hash + extracted facts only**.
 - **models.dev** — offering/pricing/capability/context evidence (MIT).
 - **OpenRouter** — availability/pricing/context **evidence only**, never a benchmark authority.
 - **Hugging Face** — the public `cais/hle` leaderboard API, with source-native evaluation
