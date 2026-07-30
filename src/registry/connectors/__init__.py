@@ -8,6 +8,7 @@ from registry.connectors.artificial_analysis import (
 )
 from registry.connectors.artificial_analysis import ArtificialAnalysisConnector
 from registry.connectors.base import Connector
+from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.models_dev import ModelsDevConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
@@ -19,6 +20,7 @@ __all__ = [
     "ArtificialAnalysisConnector",
     "AnthropicDocsConnector",
     "Connector",
+    "GoogleGeminiDocsConnector",
     "HuggingFaceConnector",
     "ModelsDevConnector",
     "OpenAIDocsConnector",
@@ -33,6 +35,7 @@ def default_connectors() -> list[Connector]:
     return [
         AnthropicDocsConnector(),
         OpenAIDocsConnector(),
+        GoogleGeminiDocsConnector(),
         ModelsDevConnector(),
         OpenRouterConnector(),
         HuggingFaceConnector(),
