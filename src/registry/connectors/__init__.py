@@ -8,6 +8,7 @@ from registry.connectors.artificial_analysis import (
 )
 from registry.connectors.artificial_analysis import ArtificialAnalysisConnector
 from registry.connectors.base import Connector
+from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.models_dev import ModelsDevConnector
@@ -19,6 +20,7 @@ from registry.connectors.terminal_bench import TerminalBenchConnector
 __all__ = [
     "ArtificialAnalysisConnector",
     "AnthropicDocsConnector",
+    "CohereDocsConnector",
     "Connector",
     "GoogleGeminiDocsConnector",
     "HuggingFaceConnector",
@@ -36,6 +38,7 @@ def default_connectors() -> list[Connector]:
         AnthropicDocsConnector(),
         OpenAIDocsConnector(),
         GoogleGeminiDocsConnector(),
+        CohereDocsConnector(),
         ModelsDevConnector(),
         OpenRouterConnector(),
         HuggingFaceConnector(),
