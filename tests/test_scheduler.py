@@ -25,7 +25,7 @@ class _Connector:
             ClaimRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=body.decode(),
+                source_model_id=body.decode(),
                 benchmark_name="test",
                 value="1",
                 source_url=self.url,

@@ -50,15 +50,15 @@ class OpenRouterConnector:
                 ModelRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    id=raw_id,
+                    source_model_id=raw_id,
                 )
             )
             records.append(
                 ProviderOfferingRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=raw_id,
-                    provider="openrouter",
+                    source_model_id=raw_id,
+                    service_id="openrouter",
                     availability_state="available",
                     modalities=sorted(set(architecture.get("input_modalities", []))),
                     context_window_tokens=entry.get("context_length"),

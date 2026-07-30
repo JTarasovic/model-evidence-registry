@@ -43,7 +43,7 @@ class ModelsDevConnector:
                     ModelRecord(
                         source_id=self.source_id,
                         trust_level=self.trust_level,
-                        id=model_id,
+                        source_model_id=model_id,
                         publisher=provider.get("name") or provider_id,
                         developer=model.get("developer"),
                         family=model.get("family"),
@@ -58,8 +58,14 @@ class ModelsDevConnector:
                     ProviderOfferingRecord(
                         source_id=self.source_id,
                         trust_level=self.trust_level,
-                        model_id=model_id,
-                        provider=provider_id,
+                        source_model_id=model_id,
+                        # models.dev is an aggregator catalog: ``provider_id`` is the source's own
+                        # provider key, not a registry-owned access service. Keep it verbatim as the
+                        # source provider; leave ``service_id`` null rather than inferring one from
+                        # this display/machine string.
+                        service_id=None,
+                        source_provider_id=provider_id,
+                        source_provider_label=provider.get("name"),
                         availability_state="available",
                         modalities=sorted(set(modalities.get("input", []))),
                         context_window_tokens=limit.get("context"),

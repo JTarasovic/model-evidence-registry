@@ -66,8 +66,9 @@ class GitHubModelsConnector:
                 ProviderOfferingRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=model_id,
-                    provider="GitHub Models",
+                    source_model_id=model_id,
+                    service_id="github-models",
+                    source_provider_label="GitHub Models",
                     availability_state="available",
                     modalities=list(dict.fromkeys(modalities)),
                     context_window_tokens=_positive_int(limits.get("max_input_tokens")),

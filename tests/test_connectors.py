@@ -50,8 +50,8 @@ def test_models_dev_emits_model_and_offering(fixtures_dir: Path) -> None:
     models = [r for r in records if isinstance(r, ModelRecord)]
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
     # Source-native ids, verbatim — no canonicalization mutation in the connector.
-    assert {m.id for m in models} == {"claude-opus-4", "gpt-5"}
-    opus = next(o for o in offerings if o.model_id == "claude-opus-4")
+    assert {m.source_model_id for m in models} == {"claude-opus-4", "gpt-5"}
+    opus = next(o for o in offerings if o.source_model_id == "claude-opus-4")
     assert opus.context_window_tokens == 1000000
     assert opus.price is not None and opus.price.input_usd_per_mtok == 5.0
 
@@ -72,8 +72,8 @@ def test_anthropic_docs_emits_hash_only_document_and_direct_api_offerings(fixtur
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    assert {o.model_id for o in offerings} == {"claude-haiku-4-5", "claude-opus-4-6", "claude-sonnet-4-6"}
-    assert all(o.provider == "Anthropic" for o in offerings)
+    assert {o.source_model_id for o in offerings} == {"claude-haiku-4-5", "claude-opus-4-6", "claude-sonnet-4-6"}
+    assert all(o.source_provider_label == "Anthropic" for o in offerings)
     assert all(o.availability_state == "available" for o in offerings)
 
 
@@ -93,8 +93,8 @@ def test_openai_docs_emits_hash_only_document_and_direct_api_offerings(fixtures_
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    assert {o.model_id for o in offerings} == {"gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"}
-    assert all(o.provider == "OpenAI" for o in offerings)
+    assert {o.source_model_id for o in offerings} == {"gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"}
+    assert all(o.source_provider_label == "OpenAI" for o in offerings)
     assert all(o.availability_state == "available" for o in offerings)
 
 
@@ -114,8 +114,8 @@ def test_google_gemini_docs_emits_hash_only_document_and_current_api_offerings(f
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    assert {o.model_id for o in offerings} == {"gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"}
-    assert all(o.provider == "Google" for o in offerings)
+    assert {o.source_model_id for o in offerings} == {"gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"}
+    assert all(o.source_provider_label == "Google" for o in offerings)
     assert all(o.availability_state == "available" for o in offerings)
 
 
@@ -135,18 +135,18 @@ def test_cohere_docs_emits_hash_only_document_and_source_native_offerings(fixtur
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    assert {o.model_id for o in offerings} == {
+    assert {o.source_model_id for o in offerings} == {
         "command-a-03-2025",
         "command-experimental",
         "command-r-08-2024",
         "embed-v4.0",
     }
-    by_model = {offering.model_id: offering for offering in offerings}
+    by_model = {offering.source_model_id: offering for offering in offerings}
     assert by_model["command-a-03-2025"].availability_state == "available"
     assert by_model["command-r-08-2024"].availability_state == "unavailable"
     assert by_model["command-experimental"].availability_state == "unknown"
     assert by_model["embed-v4.0"].availability_state == "available"
-    assert all(o.provider == "Cohere" for o in offerings)
+    assert all(o.source_provider_label == "Cohere" for o in offerings)
 
 
 def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir: Path) -> None:
@@ -165,7 +165,7 @@ def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    by_model = {offering.model_id: offering for offering in offerings}
+    by_model = {offering.source_model_id: offering for offering in offerings}
     assert set(by_model) == {
         "groq/compound-mini",
         "llama-3.3-70b-versatile",
@@ -176,7 +176,7 @@ def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir
     assert by_model["groq/compound-mini"].availability_state == "available"
     assert by_model["openai/gpt-oss-120b"].availability_state == "available"
     assert by_model["retired-model-v1"].availability_state == "unavailable"
-    assert all(o.provider == "Groq" for o in offerings)
+    assert all(o.source_provider_label == "Groq" for o in offerings)
 
 
 def test_mistral_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir: Path) -> None:
@@ -195,7 +195,7 @@ def test_mistral_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    by_model = {offering.model_id: offering for offering in offerings}
+    by_model = {offering.source_model_id: offering for offering in offerings}
     assert set(by_model) == {
         "codestral-2405",
         "mistral-large-2407",
@@ -206,7 +206,7 @@ def test_mistral_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_
     assert by_model["mistral-medium-3-5"].availability_state == "available"
     assert by_model["mistral-large-2407"].availability_state == "unavailable"
     assert by_model["codestral-2405"].availability_state == "unavailable"
-    assert all(o.provider == "Mistral AI" for o in offerings)
+    assert all(o.source_provider_label == "Mistral AI" for o in offerings)
 
 
 def test_github_models_emits_hash_only_document_and_catalog_offerings(fixtures_dir: Path) -> None:
@@ -224,12 +224,12 @@ def test_github_models_emits_hash_only_document_and_catalog_offerings(fixtures_d
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    by_model = {offering.model_id: offering for offering in offerings}
+    by_model = {offering.source_model_id: offering for offering in offerings}
     assert set(by_model) == {"deepseek/deepseek-r1", "meta/llama-3.3-70b-instruct", "openai/gpt-4.1"}
     assert by_model["openai/gpt-4.1"].modalities == ["text", "image"]
     assert by_model["openai/gpt-4.1"].context_window_tokens == 1048576
     assert by_model["openai/gpt-4.1"].max_output_tokens == 32768
-    assert all(o.provider == "GitHub Models" for o in offerings)
+    assert all(o.source_provider_label == "GitHub Models" for o in offerings)
 
 
 def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures_dir: Path) -> None:
@@ -247,7 +247,7 @@ def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    by_model = {offering.model_id: offering for offering in offerings}
+    by_model = {offering.source_model_id: offering for offering in offerings}
     assert set(by_model) == {"gemma-4-31b", "gpt-oss-120b", "zai-glm-4.7"}
     assert by_model["gemma-4-31b"].modalities == ["text+vision"]
     assert by_model["gpt-oss-120b"].context_window_tokens == 131072
@@ -255,7 +255,7 @@ def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures
     assert by_model["gpt-oss-120b"].price is not None
     assert by_model["gpt-oss-120b"].price.input_usd_per_mtok == 0.35
     assert by_model["gpt-oss-120b"].price.output_usd_per_mtok == 0.75
-    assert all(o.provider == "Cerebras" for o in offerings)
+    assert all(o.source_provider_label == "Cerebras" for o in offerings)
 
 
 def test_hf_model_cards_emit_revision_pinned_documents_and_hub_offerings(fixtures_dir: Path) -> None:
@@ -278,8 +278,8 @@ def test_hf_model_cards_emit_revision_pinned_documents_and_hub_offerings(fixture
     )
 
     offerings = [record for record in records if isinstance(record, ProviderOfferingRecord)]
-    assert {offering.model_id for offering in offerings} == set(MODEL_REPOSITORIES)
-    assert all(offering.provider == "Hugging Face Hub" for offering in offerings)
+    assert {offering.source_model_id for offering in offerings} == set(MODEL_REPOSITORIES)
+    assert all(offering.source_provider_label == "Hugging Face Hub" for offering in offerings)
     assert all(offering.availability_state == "available" for offering in offerings)
 
 
@@ -303,11 +303,11 @@ def test_swebench_keeps_splits_separate_and_uncrosswalked(fixtures_dir: Path) ->
     splits = {e.split for e in evals}
     assert splits == {"Verified", "Lite"}
     # The submission string is preserved verbatim, not fabricated into a canonical model id.
-    assert any(e.model_id == "TRAE (Claude Opus 4)" for e in evals)
+    assert any(e.source_model_id == "TRAE (Claude Opus 4)" for e in evals)
     assert all(e.comparability_status == ComparabilityStatus.NEEDS_REVIEW for e in evals)
     # A row without downloadable logs+trajectories is a claim, not an evaluation_result.
     claims = [r for r in records if isinstance(r, ClaimRecord)]
-    assert any(c.model_id == "OpenHands (GPT-5)" for c in claims)
+    assert any(c.source_model_id == "OpenHands (GPT-5)" for c in claims)
     # A NOASSERTION-licensed source is stored hash+facts-only, not re-hosted.
     docs = [r for r in records if isinstance(r, DocumentRecord)]
     assert docs and docs[0].redistribution_policy == "hash_and_facts_only"
@@ -322,10 +322,10 @@ def test_terminal_bench_preserves_version_identity(fixtures_dir: Path) -> None:
     assert evals and all(e.benchmark_version == "2.0" for e in evals)
     assert all(e.benchmark_id == "terminal-bench" for e in evals)
     assert all(e.unit == "fraction" for e in evals)
-    assert any(e.model_id == "openai/gpt-oss-20b" for e in evals)
+    assert any(e.source_model_id == "openai/gpt-oss-20b" for e in evals)
     # A submitted run with multiple models remains one compound source-native observation.
     multi_model = next(e for e in evals if e.agent == "LemonHarness")
-    assert multi_model.model_id == "lemonharness__gemini 3.1 pro preview,gpt-5.3-codex"
+    assert multi_model.source_model_id == "lemonharness__gemini 3.1 pro preview,gpt-5.3-codex"
 
 
 def test_huggingface_parses_live_leaderboard_shape_without_merging_configs(fixtures_dir: Path) -> None:
@@ -334,7 +334,7 @@ def test_huggingface_parses_live_leaderboard_shape_without_merging_configs(fixtu
         for r in HuggingFaceConnector().parse(_body(fixtures_dir, HuggingFaceConnector()))
         if isinstance(r, EvaluationResultRecord)
     ]
-    by_model = {e.model_id: e for e in evals}
+    by_model = {e.source_model_id: e for e in evals}
     assert set(by_model) == {"moonshotai/Kimi-K3", "moonshotai/Kimi-K2.6", "zai-org/GLM-5.2"}
     assert all(e.benchmark_id == "cais/hle" for e in evals)
     assert by_model["moonshotai/Kimi-K2.6"].split == ".eval_results/hle_with_tools.yaml"

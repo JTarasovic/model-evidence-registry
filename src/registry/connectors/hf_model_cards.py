@@ -82,8 +82,11 @@ class HfModelCardsConnector:
             ProviderOfferingRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=model_id,
-                provider="Hugging Face Hub",
+                source_model_id=model_id,
+                # A model card is a Hub listing, not a registry-owned inference/access service, so
+                # ``service_id`` stays null; the Hub is recorded only as the verbatim source provider.
+                service_id=None,
+                source_provider_label="Hugging Face Hub",
                 availability_state="unavailable" if model.get("disabled") is True else "available",
                 observed_at=observed_at,
             ),

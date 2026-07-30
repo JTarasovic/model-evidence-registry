@@ -46,9 +46,35 @@ the code that produced a given snapshot.
 ## Trust, not just shape
 
 Every record carries a `trust_level` from the source ladder and preserves source-native identifiers
-verbatim. The `crosswalk.json` sidecar is **advisory** — it _proposes_ canonical ids; the consumer
-owns the final identity decision. The registry never manufactures equivalence between distinct
-benchmarks/settings. See the [design doc](https://github.com/JTarasovic/agent-foundry/blob/main/docs/designs/model-evidence-registry.md).
+verbatim. The `crosswalk.json` sidecar is **advisory** — it _proposes_ canonical ids **only** from an
+explicit reviewed identity table (`method="reviewed_alias"`) and otherwise says `unmapped` with a
+null canonical id; the consumer owns the final identity decision. A canonical id is never derived
+from an access `service_id` or a provider label. The registry never manufactures equivalence between
+distinct benchmarks/settings. See the [design doc](https://github.com/JTarasovic/agent-foundry/blob/main/docs/designs/model-evidence-registry.md).
+
+## Identity namespaces (glossary)
+
+These are **separate** namespaces and are named separately in the artifact. Conflating them (for
+example, deriving a canonical id from an access provider) is the bug corrected in schema `0.2.0`.
+
+| field / concept | meaning |
+| --- | --- |
+| `source_id` | connector / evidence origin (`models.dev`, `cerebras-models`, `groq-model-docs`). |
+| `service_id` | stable **registry-owned** inference/access-service id (`cerebras`, `groq`, `openai-api`). Null when no reviewed access service applies; never derived from a source display string. |
+| `source_provider_id` / `source_provider_label` | optional **verbatim** provider value the source itself supplied. |
+| `source_model_id` | the model id exactly as the source emitted it; opaque, may contain `/`. Its first segment is never interpreted as a developer. |
+| `developer_id` | reviewed canonical developer-organization id, when known; never guessed from a free-text label. |
+| `canonical_model_id` | reviewed cross-source identity, when known; `null` when unmapped. Never derived from `service_id`. |
+
+Direct-provider API access and any subscription/product access path are **distinct** `service_id`s:
+direct OpenAI API evidence (`openai-api`) is not evidence for an OpenAI Codex subscription route.
+`hf-model-cards` and `huggingface` remain distinct `source_id`s (different endpoints, parsers, trust
+levels, licences, and evidence types).
+
+The exact canonical slug policy: a developer-prefixed canonical id (`openai/gpt-oss-120b`) is
+acceptable **only** when both the `developer_id` and the model equivalence are explicitly reviewed and
+recorded in `registry/normalize.py::_REVIEWED_IDENTITY`. Lowercasing a free-text developer or
+provider label is not sufficient.
 
 ## Integrity
 

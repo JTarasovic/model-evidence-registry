@@ -91,8 +91,9 @@ class CohereDocsConnector:
             ProviderOfferingRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=model_id,
-                provider="Cohere",
+                source_model_id=model_id,
+                service_id="cohere-api",
+                source_provider_label="Cohere",
                 availability_state=availability_state,
                 observed_at=observed_at,
             )

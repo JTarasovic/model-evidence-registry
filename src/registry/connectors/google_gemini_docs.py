@@ -80,8 +80,9 @@ class GoogleGeminiDocsConnector:
             ProviderOfferingRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=model_id,
-                provider="Google",
+                source_model_id=model_id,
+                service_id="google-gemini-api",
+                source_provider_label="Google",
                 availability_state="available",
                 observed_at=observed_at,
             )

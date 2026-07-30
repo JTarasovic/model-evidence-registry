@@ -124,8 +124,9 @@ class GroqDocsConnector:
             ProviderOfferingRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=model_id,
-                provider="Groq",
+                source_model_id=model_id,
+                service_id="groq",
+                source_provider_label="Groq",
                 availability_state=availability_state,
                 observed_at=observed_at,
             )

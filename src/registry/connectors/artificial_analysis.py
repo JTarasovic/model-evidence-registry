@@ -70,7 +70,7 @@ class ArtificialAnalysisConnector:
                     ClaimRecord(
                         source_id=self.source_id,
                         trust_level=self.trust_level,
-                        model_id=model_id,
+                        source_model_id=model_id,
                         benchmark_name=benchmark_name,
                         # Kept as the reported string — AA's values are under-specified (index vs %),
                         # so we never coerce to a float or manufacture a unit.

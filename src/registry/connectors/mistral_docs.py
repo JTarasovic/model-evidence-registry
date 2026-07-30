@@ -133,8 +133,9 @@ class MistralDocsConnector:
             ProviderOfferingRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=model_id,
-                provider="Mistral AI",
+                source_model_id=model_id,
+                service_id="mistral-api",
+                source_provider_label="Mistral AI",
                 availability_state=availability_state,
                 observed_at=observed_at,
             )

@@ -43,9 +43,14 @@ and snapshot bookkeeping live in `registry.build`, so connectors stay determinis
    independently reproducible run > third-party report), and a `parse(body, observed_at)` method.
 2. **Never call `datetime.now()`** in a connector — use the injected `observed_at` so identical bytes
    produce identical checksums.
-3. **Preserve source-native identifiers verbatim.** Do not merge, rename, or normalize ids into a
-   canonical form — deciding two ids are "the same model" is a curation decision that belongs in the
-   advisory crosswalk, and a wrong central merge is invisible to every consumer.
+3. **Preserve source-native identifiers verbatim.** Emit the model id as `source_model_id` exactly as
+   the source states it (it may contain `/`; the first segment is not a developer). Do not merge,
+   rename, or normalize ids into a canonical form — deciding two ids are "the same model" is a
+   curation decision that belongs in the advisory crosswalk, and a wrong central merge is invisible
+   to every consumer. Keep the access path and any source-supplied provider value separate: set a
+   stable registry-owned `service_id` for the offering's access service (or leave it null), and put
+   any verbatim provider value the source supplied in `source_provider_id` / `source_provider_label`.
+   See the [identity-namespaces glossary](docs/versioning.md#identity-namespaces-glossary).
 4. **Never manufacture equivalence** between distinct benchmarks or run settings (e.g. `SWE-bench`
    vs `SWE-bench Verified` vs `SWE-bench Pro`, or scores under different agents/reasoning) — each is
    a distinct `evaluation_result`/`claim` with comparability metadata.

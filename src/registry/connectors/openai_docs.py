@@ -82,8 +82,9 @@ class OpenAIDocsConnector:
             ProviderOfferingRecord(
                 source_id=self.source_id,
                 trust_level=self.trust_level,
-                model_id=model_id,
-                provider="OpenAI",
+                source_model_id=model_id,
+                service_id="openai-api",
+                source_provider_label="OpenAI",
                 availability_state="available",
                 observed_at=observed_at,
             )

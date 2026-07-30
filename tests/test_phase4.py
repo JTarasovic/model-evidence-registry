@@ -33,14 +33,14 @@ def test_aa_emits_only_claims_verbatim_ids(fixtures_dir: Path) -> None:
     assert claims and len(claims) == len(records)
     assert all(c.trust_level == TrustLevel.THIRD_PARTY_REPORT for c in claims)
     # Source-native slugs, verbatim — no canonicalization in the connector.
-    assert {c.model_id for c in claims} == {"claude-opus-4", "gpt-5"}
+    assert {c.source_model_id for c in claims} == {"claude-opus-4", "gpt-5"}
     # A null score is preserved as absence, never a guessed value.
     assert not any(c.benchmark_name == "livecodebench" for c in claims)
     # Reported value kept as a string (index vs %) — never coerced.
     idx = next(
         c
         for c in claims
-        if c.model_id == "gpt-5" and c.benchmark_name == "artificial_analysis_intelligence_index"
+        if c.source_model_id == "gpt-5" and c.benchmark_name == "artificial_analysis_intelligence_index"
     )
     assert idx.value == "73"
 

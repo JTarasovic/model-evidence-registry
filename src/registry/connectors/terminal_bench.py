@@ -59,7 +59,7 @@ class TerminalBenchConnector:
                 EvaluationResultRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=model_id,
+                    source_model_id=model_id,
                     benchmark_id="terminal-bench",
                     benchmark_version=BENCHMARK_VERSION,
                     metric="accuracy",

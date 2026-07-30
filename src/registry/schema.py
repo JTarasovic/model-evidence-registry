@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.2.0"
 
 RECORD_TYPES = (
     "model",
@@ -68,9 +68,13 @@ class _Record(BaseModel):
 
 class ModelRecord(_Record):
     record_type: Literal["model"] = "model"
-    id: str = Field(description="Canonical model id, e.g. 'anthropic/claude-opus-4'.")
+    source_model_id: str = Field(
+        description="Opaque model id exactly as the source emitted it (source-native, verbatim; may contain '/')."
+    )
     publisher: str | None = None
-    developer: str | None = None
+    developer: str | None = Field(
+        default=None, description="Source-native developer label, verbatim; not a reviewed registry developer id."
+    )
     family: str | None = None
     release_date: str | None = None
     version: str | None = None
@@ -87,8 +91,22 @@ class PriceObservation(BaseModel):
 
 class ProviderOfferingRecord(_Record):
     record_type: Literal["provider_offering"] = "provider_offering"
-    model_id: str
-    provider: str
+    source_model_id: str = Field(
+        description="Opaque model id exactly as the source emitted it (source-native, verbatim; may contain '/')."
+    )
+    service_id: str | None = Field(
+        default=None,
+        description=(
+            "Stable registry-owned inference/access-service id (e.g. 'cerebras', 'groq', 'openai-api'). "
+            "Null when no reviewed access service is known; never derived from a source display label."
+        ),
+    )
+    source_provider_id: str | None = Field(
+        default=None, description="Verbatim machine provider id supplied by the source, when the source supplies one."
+    )
+    source_provider_label: str | None = Field(
+        default=None, description="Verbatim human provider label supplied by the source, when the source supplies one."
+    )
     availability_state: Literal["available", "unavailable", "unknown"] = "unknown"
     modalities: list[str] = Field(default_factory=list)
     context_window_tokens: int | None = None
@@ -112,7 +130,7 @@ class DocumentRecord(_Record):
 
 class EvaluationResultRecord(_Record):
     record_type: Literal["evaluation_result"] = "evaluation_result"
-    model_id: str
+    source_model_id: str = Field(description="Source-native model id, verbatim; may contain '/'.")
     benchmark_id: str
     benchmark_version: str | None = None
     split: str | None = None
@@ -133,7 +151,7 @@ class ClaimRecord(_Record):
     """A vendor- or third-party-reported value not tied to a canonical result row."""
 
     record_type: Literal["claim"] = "claim"
-    model_id: str
+    source_model_id: str = Field(description="Source-native model id, verbatim; may contain '/'.")
     benchmark_name: str
     value: str = Field(description="Kept as the reported string (e.g. '80.3%') — under-specified.")
     unit: str | None = None
@@ -172,23 +190,38 @@ class Artifact(BaseModel):
 
 
 class CrosswalkEntry(BaseModel):
-    """One advisory identity mapping: a *source-native* id and a **proposed** canonical id.
+    """One advisory identity mapping keyed by a full source offering identity.
 
     The registry never mutates the ids on the evidence records — every record keeps the identifier
     exactly as its source emitted it. This crosswalk is a *separate, advisory* sidecar: it suggests
     which source-native ids are likely the same model, so a consumer can adopt, override, or ignore
     it. Deciding the final mapping to a curated inventory stays consumer-owned (ADR 0028 authority
     invariant) — the registry proposes, it does not decide.
+
+    ``canonical_model_id`` is populated **only** from an explicit reviewed identity table
+    (``method="reviewed_alias"``); it is never derived from ``service_id`` or a provider label. When
+    no reviewed identity exists the entry is honestly ``method="unmapped"`` with a null canonical id.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    source: str = Field(description="Connector that observed this id (e.g. 'models.dev').")
-    raw_id: str = Field(description="The source-native identifier, verbatim.")
-    provider: str | None = None
-    proposed_canonical_id: str = Field(description="Advisory canonical id — a suggestion, not authority.")
-    method: Literal["alias_table", "verbatim"] = Field(
-        description="alias_table = an explicit reviewed alias merged it; verbatim = no merge, id normalized only."
+    source_id: str = Field(description="Connector/evidence origin that observed this id (e.g. 'models.dev').")
+    service_id: str | None = Field(
+        default=None, description="Registry-owned access-service id of the observing offering, when known."
+    )
+    source_provider_id: str | None = Field(
+        default=None, description="Verbatim provider id the source supplied for this offering, when any."
+    )
+    source_model_id: str = Field(description="The source-native model identifier, verbatim; may contain '/'.")
+    developer_id: str | None = Field(
+        default=None, description="Reviewed canonical developer organization id, when known; never guessed."
+    )
+    canonical_model_id: str | None = Field(
+        default=None,
+        description="Reviewed cross-source identity, when known; null when unmapped. Never derived from service_id.",
+    )
+    method: Literal["reviewed_alias", "unmapped"] = Field(
+        description="reviewed_alias = an explicit reviewed identity table merged it; unmapped = no reviewed identity."
     )
 
 

@@ -78,8 +78,9 @@ class CerebrasModelsConnector:
                 ProviderOfferingRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=model_id,
-                    provider="Cerebras",
+                    source_model_id=model_id,
+                    service_id="cerebras",
+                    source_provider_label="Cerebras",
                     availability_state="unavailable" if model.get("deprecated") is True else "available",
                     modalities=_modalities(model),
                     context_window_tokens=_positive_int(limits.get("max_context_length")),

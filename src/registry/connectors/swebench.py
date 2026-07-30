@@ -69,7 +69,7 @@ class SweBenchConnector:
                             trust_level=self.trust_level,
                             # Uncrosswalked submission string — a model/agent identity mapper is
                             # future work; we must not fabricate a canonical model id here.
-                            model_id=submission,
+                            source_model_id=submission,
                             benchmark_id="swe-bench",
                             benchmark_version=None,
                             split=split,
@@ -86,7 +86,7 @@ class SweBenchConnector:
                         ClaimRecord(
                             source_id=self.source_id,
                             trust_level=TrustLevel.THIRD_PARTY_REPORT,
-                            model_id=submission,
+                            source_model_id=submission,
                             benchmark_name=f"SWE-bench {split}".strip(),
                             value=f"{resolved}%",
                             unit="percent",

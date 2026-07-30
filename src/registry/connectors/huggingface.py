@@ -44,7 +44,7 @@ class HuggingFaceConnector:
                 EvaluationResultRecord(
                     source_id=self.source_id,
                     trust_level=self.trust_level,
-                    model_id=entry.get("modelId", ""),
+                    source_model_id=entry.get("modelId", ""),
                     benchmark_id=DATASET_ID,
                     # The endpoint has no benchmark version field. Its filename identifies the
                     # submitted evaluation configuration and must remain distinct from other rows.
