@@ -30,6 +30,8 @@ agent/reasoning settings.
 
 ### Connectors (public sources only, no credentials)
 
+- **Anthropic Models overview** — official direct-Claude-API availability evidence. Documentation is
+  represented as **hash + extracted facts only**, not re-hosted.
 - **models.dev** — offering/pricing/capability/context evidence (MIT).
 - **OpenRouter** — availability/pricing/context **evidence only**, never a benchmark authority.
 - **Hugging Face** — the public `cais/hle` leaderboard API, with source-native evaluation

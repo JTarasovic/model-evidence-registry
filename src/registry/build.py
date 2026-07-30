@@ -27,12 +27,14 @@ from registry.schema import Artifact, Crosswalk, FetchOutcome, Record
 class FixtureTransport:
     """Replays saved fixtures by URL — the deterministic, no-network transport for builds/tests.
 
-    ``fixtures_dir`` holds ``<source_id>.json`` files. ``url_to_source`` maps each connector URL to a
-    source id. Optionally returns 304 for URLs whose validators already match (``not_modified``).
+    ``fixtures_dir`` holds source-response files. JSON remains the default filename convention, but
+    connectors whose source is HTML (or another format) declare ``fixture_filename`` explicitly.
+    ``url_to_fixture`` maps each connector URL to that filename. Optionally returns 304 for URLs
+    whose validators already match (``not_modified``).
     """
 
     fixtures_dir: Path
-    url_to_source: dict[str, str]
+    url_to_fixture: dict[str, str]
     return_304_for: set[str] = field(default_factory=set)
 
     def request(self, url: str, headers: dict[str, str]) -> RawResponse:
@@ -40,8 +42,7 @@ class FixtureTransport:
             "If-None-Match" in headers or "If-Modified-Since" in headers
         ):
             return RawResponse(status=304)
-        source_id = self.url_to_source[url]
-        body = (self.fixtures_dir / f"{source_id}.json").read_bytes()
+        body = (self.fixtures_dir / self.url_to_fixture[url]).read_bytes()
         return RawResponse(
             status=200,
             body=body,
@@ -112,5 +113,10 @@ def build(
 def fixture_transport(fixtures_dir: Path, connectors: list[Connector]) -> FixtureTransport:
     return FixtureTransport(
         fixtures_dir=fixtures_dir,
-        url_to_source={c.url: c.source_id for c in connectors},
+        url_to_fixture={c.url: fixture_filename(c) for c in connectors},
     )
+
+
+def fixture_filename(connector: Connector) -> str:
+    """Return a connector's saved-response filename, defaulting to its historical JSON convention."""
+    return str(getattr(connector, "fixture_filename", f"{connector.source_id}.json"))

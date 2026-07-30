@@ -2,6 +2,7 @@
 
 import os
 
+from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.artificial_analysis import (
     API_KEY_ENV as ARTIFICIAL_ANALYSIS_API_KEY_ENV,
 )
@@ -15,6 +16,7 @@ from registry.connectors.terminal_bench import TerminalBenchConnector
 
 __all__ = [
     "ArtificialAnalysisConnector",
+    "AnthropicDocsConnector",
     "Connector",
     "HuggingFaceConnector",
     "ModelsDevConnector",
@@ -27,6 +29,7 @@ __all__ = [
 def default_connectors() -> list[Connector]:
     """The PoC connector set (public sources only, no credentials)."""
     return [
+        AnthropicDocsConnector(),
         ModelsDevConnector(),
         OpenRouterConnector(),
         HuggingFaceConnector(),

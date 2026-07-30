@@ -22,6 +22,7 @@ LEADERBOARD_URL = f"https://www.tbench.ai/leaderboard/terminal-bench/{BENCHMARK_
 
 class TerminalBenchConnector:
     source_id = "terminal-bench"
+    fixture_filename = "terminal-bench.html"
     url = LEADERBOARD_URL
     license = "Apache-2.0"
     parser_version = "2"

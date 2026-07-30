@@ -6,27 +6,28 @@ from pathlib import Path
 
 import pytest
 
-from registry.build import build
+from registry.build import build, fixture_filename
 from registry.connectors import credentialed_connectors, default_connectors
 from registry.connectors.artificial_analysis import (
     API_KEY_ENV,
     ArtificialAnalysisConnector,
 )
+from registry.connectors.base import Connector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.terminal_bench import TerminalBenchConnector
 from registry.fetch import FetchCache, RawResponse, sha256_hex
 from registry.schema import ClaimRecord, FetchOutcome, SourceSnapshotRecord, TrustLevel
 
 
-def _body(fixtures_dir: Path, source_id: str) -> bytes:
-    return (fixtures_dir / f"{source_id}.json").read_bytes()
+def _body(fixtures_dir: Path, connector: Connector) -> bytes:
+    return (fixtures_dir / fixture_filename(connector)).read_bytes()
 
 
 # --- Artificial Analysis connector -------------------------------------------------------------
 
 
 def test_aa_emits_only_claims_verbatim_ids(fixtures_dir: Path) -> None:
-    records = ArtificialAnalysisConnector().parse(_body(fixtures_dir, "artificial-analysis"))
+    records = ArtificialAnalysisConnector().parse(_body(fixtures_dir, ArtificialAnalysisConnector()))
     # Aggregated third-party numbers are *claims*, never evaluation_results (§2).
     claims = [r for r in records if isinstance(r, ClaimRecord)]
     assert claims and len(claims) == len(records)
@@ -45,7 +46,7 @@ def test_aa_emits_only_claims_verbatim_ids(fixtures_dir: Path) -> None:
 
 
 def test_aa_parse_is_deterministic(fixtures_dir: Path) -> None:
-    body = _body(fixtures_dir, "artificial-analysis")
+    body = _body(fixtures_dir, ArtificialAnalysisConnector())
     first = [r.model_dump(mode="json") for r in ArtificialAnalysisConnector().parse(body)]
     second = [r.model_dump(mode="json") for r in ArtificialAnalysisConnector().parse(body)]
     assert first == second
