@@ -8,6 +8,7 @@ from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.base import Connector
 from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
+from registry.connectors.groq_docs import GroqDocsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.models_dev import ModelsDevConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
@@ -140,6 +141,36 @@ def test_cohere_docs_emits_hash_only_document_and_source_native_offerings(fixtur
     assert by_model["command-experimental"].availability_state == "unknown"
     assert by_model["embed-v4.0"].availability_state == "available"
     assert all(o.provider == "Cohere" for o in offerings)
+
+
+def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir: Path) -> None:
+    connector = GroqDocsConnector()
+    body = _body(fixtures_dir, connector)
+    records = connector.parse(body, observed_at="2026-07-30T00:00:00+00:00")
+
+    docs = [r for r in records if isinstance(r, DocumentRecord)]
+    assert len(docs) == 1
+    document = docs[0]
+    assert document.url == connector.url
+    assert document.revision is None
+    assert document.content_sha256 == sha256_hex(body)
+    assert document.retrieved_at == "2026-07-30T00:00:00+00:00"
+    assert document.redistribution_policy == "hash_and_facts_only"
+    assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
+
+    offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
+    by_model = {offering.model_id: offering for offering in offerings}
+    assert set(by_model) == {
+        "groq/compound-mini",
+        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
+        "retired-model-v1",
+    }
+    assert by_model["llama-3.3-70b-versatile"].availability_state == "available"
+    assert by_model["groq/compound-mini"].availability_state == "available"
+    assert by_model["openai/gpt-oss-120b"].availability_state == "available"
+    assert by_model["retired-model-v1"].availability_state == "unavailable"
+    assert all(o.provider == "Groq" for o in offerings)
 
 
 def test_swebench_keeps_splits_separate_and_uncrosswalked(fixtures_dir: Path) -> None:
