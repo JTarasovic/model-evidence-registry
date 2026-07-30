@@ -10,6 +10,7 @@ from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.groq_docs import GroqDocsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
+from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
 from registry.connectors.swebench import SweBenchConnector
@@ -171,6 +172,36 @@ def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir
     assert by_model["openai/gpt-oss-120b"].availability_state == "available"
     assert by_model["retired-model-v1"].availability_state == "unavailable"
     assert all(o.provider == "Groq" for o in offerings)
+
+
+def test_mistral_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir: Path) -> None:
+    connector = MistralDocsConnector()
+    body = _body(fixtures_dir, connector)
+    records = connector.parse(body, observed_at="2026-07-30T00:00:00+00:00")
+
+    docs = [r for r in records if isinstance(r, DocumentRecord)]
+    assert len(docs) == 1
+    document = docs[0]
+    assert document.url == connector.url
+    assert document.revision is None
+    assert document.content_sha256 == sha256_hex(body)
+    assert document.retrieved_at == "2026-07-30T00:00:00+00:00"
+    assert document.redistribution_policy == "hash_and_facts_only"
+    assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
+
+    offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
+    by_model = {offering.model_id: offering for offering in offerings}
+    assert set(by_model) == {
+        "codestral-2405",
+        "mistral-large-2407",
+        "mistral-large-2512",
+        "mistral-medium-3-5",
+    }
+    assert by_model["mistral-large-2512"].availability_state == "available"
+    assert by_model["mistral-medium-3-5"].availability_state == "available"
+    assert by_model["mistral-large-2407"].availability_state == "unavailable"
+    assert by_model["codestral-2405"].availability_state == "unavailable"
+    assert all(o.provider == "Mistral AI" for o in offerings)
 
 
 def test_swebench_keeps_splits_separate_and_uncrosswalked(fixtures_dir: Path) -> None:

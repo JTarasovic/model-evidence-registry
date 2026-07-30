@@ -12,6 +12,7 @@ from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.groq_docs import GroqDocsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
+from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
 from registry.connectors.openrouter import OpenRouterConnector
@@ -27,6 +28,7 @@ __all__ = [
     "GroqDocsConnector",
     "HuggingFaceConnector",
     "ModelsDevConnector",
+    "MistralDocsConnector",
     "OpenAIDocsConnector",
     "OpenRouterConnector",
     "SweBenchConnector",
@@ -42,6 +44,7 @@ def default_connectors() -> list[Connector]:
         GoogleGeminiDocsConnector(),
         CohereDocsConnector(),
         GroqDocsConnector(),
+        MistralDocsConnector(),
         ModelsDevConnector(),
         OpenRouterConnector(),
         HuggingFaceConnector(),
