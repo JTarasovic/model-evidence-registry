@@ -99,7 +99,7 @@ class _GoodTransport:
     def __init__(self, body: bytes) -> None:
         self._body = body
 
-    def request(self, url: str, headers: dict[str, str]) -> RawResponse:
+    def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:
         return RawResponse(status=200, body=self._body, etag=f'"{sha256_hex(self._body)[:16]}"')
 
 

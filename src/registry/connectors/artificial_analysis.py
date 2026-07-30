@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 
+from registry.fetch import FetchPolicy
 from registry.schema import ClaimRecord, Record, TrustLevel
 
 API_URL = "https://artificialanalysis.ai/api/v2/data/llms/models"
@@ -38,6 +39,7 @@ class ArtificialAnalysisConnector:
     parser_version = "1"
     #: Aggregated third-party numbers — the bottom of the trust ladder, and always a claim.
     trust_level = TrustLevel.THIRD_PARTY_REPORT
+    fetch_policy = FetchPolicy(source_key="artificial-analysis", min_interval_seconds=0.5)
 
     def __init__(self, api_key: str | None = None) -> None:
         # Held only for the request header; never written into a record or snapshot.

@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from html.parser import HTMLParser
 
-from registry.fetch import sha256_hex
+from registry.fetch import FetchPolicy, sha256_hex
 from registry.schema import DocumentRecord, ProviderOfferingRecord, Record, TrustLevel
 
 MODELS_OVERVIEW_URL = "https://platform.claude.com/docs/en/about-claude/models/overview"
@@ -62,6 +62,9 @@ class AnthropicDocsConnector:
     license = "Anthropic documentation terms; extracted facts and content hash only"
     parser_version = "1"
     trust_level = TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
+    # Provider documentation is deliberately conservative.  Additional Anthropic documentation
+    # endpoints should reuse this key so they share the same rate limit.
+    fetch_policy = FetchPolicy(source_key="anthropic-docs", min_interval_seconds=0.5)
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         text = body.decode("utf-8")

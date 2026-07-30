@@ -6,15 +6,22 @@ Keeps connectors pure ``bytes -> records`` parsers. Fetching, snapshot bookkeepi
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
 from registry.connectors.base import Connector, snapshot_from_fetch
 from registry.fetch import (
+    Clock,
     FetchCache,
+    FetchPolicy,
+    FetchResult,
     RawResponse,
+    SourceRateLimiter,
+    SystemClock,
     Transport,
     conditional_fetch,
     sha256_hex,
@@ -37,7 +44,7 @@ class FixtureTransport:
     url_to_fixture: dict[str, str]
     return_304_for: set[str] = field(default_factory=set)
 
-    def request(self, url: str, headers: dict[str, str]) -> RawResponse:
+    def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:
         if url in self.return_304_for and (
             "If-None-Match" in headers or "If-Modified-Since" in headers
         ):
@@ -58,24 +65,138 @@ class BuildResult:
     snapshots: list  # list[SourceSnapshotRecord]
 
 
+DEFAULT_GLOBAL_CONCURRENCY = 8
+FIXTURE_GENERATED_AT = "2026-07-29T00:00:00+00:00"
+
+
+def fetch_policy_for(connector: Connector) -> FetchPolicy:
+    """Read opt-in connector metadata, preserving compatibility with existing connectors."""
+    declared = getattr(connector, "fetch_policy", None)
+    if declared is None:
+        return FetchPolicy()
+    if not isinstance(declared, FetchPolicy):
+        raise TypeError(f"{connector.source_id}.fetch_policy must be a FetchPolicy")
+    return declared.validated()
+
+
+def shared_source_policies(
+    connectors: Sequence[Connector], policies: Sequence[FetchPolicy]
+) -> list[FetchPolicy]:
+    """Apply one conservative set of rate limits to each declared source key.
+
+    Multiple endpoints may deliberately share a source key while having different request
+    timeouts or retry budgets.  Their rate limits, however, govern the provider as a whole:
+    the lowest declared concurrency and greatest declared interval therefore apply to every
+    connector for that key.
+    """
+    limits_by_source: dict[str, tuple[int, float]] = {}
+    for connector, policy in zip(connectors, policies, strict=True):
+        key = policy.key_for(connector.url)
+        existing = limits_by_source.get(key)
+        if existing is None:
+            limits_by_source[key] = (policy.max_concurrency, policy.min_interval_seconds)
+        else:
+            limits_by_source[key] = (
+                min(existing[0], policy.max_concurrency),
+                max(existing[1], policy.min_interval_seconds),
+            )
+    return [
+        replace(
+            policy,
+            max_concurrency=limits_by_source[policy.key_for(connector.url)][0],
+            min_interval_seconds=limits_by_source[policy.key_for(connector.url)][1],
+        )
+        for connector, policy in zip(connectors, policies, strict=True)
+    ]
+
+
+def _fetch_connector(
+    connector: Connector,
+    transport: Transport,
+    cache: FetchCache,
+    policy: FetchPolicy,
+    limiter: SourceRateLimiter,
+    clock: Clock,
+) -> FetchResult:
+    """Perform one connector's bounded request/retry sequence in a scheduler worker."""
+    auth_fn = getattr(connector, "auth_headers", None)
+    extra_headers = cast("dict[str, str] | None", auth_fn() if callable(auth_fn) else None)
+    return conditional_fetch(
+        connector.url,
+        transport,
+        cache,
+        retries=policy.retries,
+        backoff_seconds=policy.backoff_seconds,
+        max_backoff_seconds=policy.max_backoff_seconds,
+        jitter_seconds=policy.jitter_seconds,
+        timeout_seconds=policy.timeout_seconds,
+        source_budget_seconds=policy.source_budget_seconds,
+        extra_headers=extra_headers,
+        clock=clock,
+        request_gate=lambda deadline: limiter.acquire(policy, connector.url, deadline),
+        request_release=lambda: limiter.release(policy, connector.url),
+    )
+
+
 def build(
-    connectors: list[Connector],
+    connectors: Sequence[Connector],
     transport: Transport,
     *,
     cache: FetchCache | None = None,
     now: str | None = None,
+    global_concurrency: int = DEFAULT_GLOBAL_CONCURRENCY,
+    clock: Clock | None = None,
 ) -> BuildResult:
+    if global_concurrency < 1:
+        raise ValueError("global_concurrency must be at least 1")
     cache = cache or FetchCache()
-    generated_at = now or datetime.now(UTC).isoformat()
+    # Fixture replays are byte-stable even when callers omit ``now``.  Live builds retain their
+    # actual build time, while tests can still provide an explicit timestamp for either mode.
+    generated_at = now or (
+        FIXTURE_GENERATED_AT if isinstance(transport, FixtureTransport) else datetime.now(UTC).isoformat()
+    )
+    current_clock = clock or SystemClock()
     records: list[Record] = []
     snapshots = []
-    for connector in connectors:
-        # A connector may expose static per-source request headers (e.g. an auth key for a
-        # credentialed source); pass them through to the fetch layer, which is the only place a
-        # secret ever appears (never a record/snapshot).
-        auth_fn = getattr(connector, "auth_headers", None)
-        extra_headers = cast("dict[str, str] | None", auth_fn() if callable(auth_fn) else None)
-        result = conditional_fetch(connector.url, transport, cache, extra_headers=extra_headers)
+    policies = shared_source_policies(connectors, [fetch_policy_for(connector) for connector in connectors])
+    limiter = SourceRateLimiter(current_clock)
+    # A finite worker pool bounds all in-flight transport requests.  At most each source policy's
+    # request concurrency is submitted at once, so a rate-delayed provider cannot fill the pool and
+    # make unrelated hosts wait behind its sleeps.  Results are consumed below in declared connector
+    # order, not completion order, so the artifact and manifest remain stable.
+    pending = list(enumerate(zip(connectors, policies, strict=True)))
+    results_by_index: dict[int, FetchResult] = {}
+    active_by_source: dict[str, int] = {}
+    with ThreadPoolExecutor(max_workers=global_concurrency, thread_name_prefix="registry-fetch") as executor:
+        futures: dict[Future[FetchResult], tuple[int, str]] = {}
+        while pending or futures:
+            while len(futures) < global_concurrency:
+                eligible_index = next(
+                    (
+                        index
+                        for index, (_, (connector, policy)) in enumerate(pending)
+                        if active_by_source.get(policy.key_for(connector.url), 0) < policy.max_concurrency
+                    ),
+                    None,
+                )
+                if eligible_index is None:
+                    break
+                connector_index, (connector, policy) = pending.pop(eligible_index)
+                source_key = policy.key_for(connector.url)
+                active_by_source[source_key] = active_by_source.get(source_key, 0) + 1
+                future = executor.submit(_fetch_connector, connector, transport, cache, policy, limiter, current_clock)
+                futures[future] = (connector_index, source_key)
+            if not futures:
+                raise RuntimeError("fetch scheduler found no eligible connector")
+            done, _ = wait(futures, return_when=FIRST_COMPLETED)
+            for future in done:
+                connector_index, source_key = futures.pop(future)
+                active_by_source[source_key] -= 1
+                results_by_index[connector_index] = future.result()
+
+    results = [results_by_index[index] for index in range(len(connectors))]
+
+    for connector, result in zip(connectors, results, strict=True):
         snapshot = snapshot_from_fetch(connector, result)
         # Pin every record's retrieval/observation time to the build's single timestamp so identical
         # inputs produce byte-identical output (and identical checksums), rather than a fresh

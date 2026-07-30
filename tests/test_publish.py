@@ -54,3 +54,10 @@ def test_build_is_byte_deterministic(fixtures_dir: Path, tmp_path: Path) -> None
     a = publish(_build(fixtures_dir), tmp_path / "a")
     b = publish(_build(fixtures_dir), tmp_path / "b")
     assert a["artifacts"][RECORDS_JSON]["sha256"] == b["artifacts"][RECORDS_JSON]["sha256"]
+
+
+def test_fixture_build_is_deterministic_without_callers_supplying_a_clock(fixtures_dir: Path) -> None:
+    connectors = default_connectors()
+    first = build(connectors, fixture_transport(fixtures_dir, connectors))
+    second = build(connectors, fixture_transport(fixtures_dir, connectors))
+    assert first.artifact.model_dump(mode="json") == second.artifact.model_dump(mode="json")

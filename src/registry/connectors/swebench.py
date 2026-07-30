@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 
-from registry.fetch import sha256_hex
+from registry.fetch import FetchPolicy, sha256_hex
 from registry.schema import (
     ClaimRecord,
     ComparabilityStatus,
@@ -34,6 +34,7 @@ class SweBenchConnector:
     license = "NOASSERTION"
     parser_version = "1"
     trust_level = TrustLevel.BENCHMARK_MAINTAINER_LEADERBOARD
+    fetch_policy = FetchPolicy(source_key="github-raw", min_interval_seconds=0.25)
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)

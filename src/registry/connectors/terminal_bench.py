@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+from registry.fetch import FetchPolicy
 from registry.schema import (
     ComparabilityStatus,
     EvaluationResultRecord,
@@ -27,6 +28,7 @@ class TerminalBenchConnector:
     license = "Apache-2.0"
     parser_version = "2"
     trust_level = TrustLevel.BENCHMARK_MAINTAINER_LEADERBOARD
+    fetch_policy = FetchPolicy()
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         # The official page's React Server Component payload serializes the rows as escaped JSON.

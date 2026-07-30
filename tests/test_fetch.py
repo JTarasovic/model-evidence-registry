@@ -16,7 +16,7 @@ class SequenceTransport:
         self.sent_headers: list[dict[str, str]] = []
         self._i = 0
 
-    def request(self, url: str, headers: dict[str, str]) -> RawResponse:
+    def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:
         self.sent_headers.append(dict(headers))
         resp = self._responses[self._i]
         self._i += 1

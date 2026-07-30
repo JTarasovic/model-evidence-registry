@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 
+from registry.fetch import FetchPolicy
 from registry.schema import (
     ComparabilityStatus,
     EvaluationResultRecord,
@@ -26,6 +27,7 @@ class HuggingFaceConnector:
     license = "Per-dataset"
     parser_version = "1"
     trust_level = TrustLevel.BENCHMARK_MAINTAINER_LEADERBOARD
+    fetch_policy = FetchPolicy()
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)

@@ -10,7 +10,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from registry.build import build, fixture_transport
+from registry.build import DEFAULT_GLOBAL_CONCURRENCY, build, fixture_transport
 from registry.connectors import credentialed_connectors, default_connectors
 from registry.publish import publish
 
@@ -24,10 +24,10 @@ def _live_transport():  # pragma: no cover - network path, not exercised in CI
         def __init__(self) -> None:
             self._client = httpx.Client(timeout=30.0, follow_redirects=True)
 
-        def request(self, url: str, headers: dict[str, str]):
+        def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None):
             from registry.fetch import RawResponse
 
-            resp = self._client.get(url, headers=headers)
+            resp = self._client.get(url, headers=headers, timeout=timeout_seconds)
             return RawResponse(
                 status=resp.status_code,
                 body=resp.content,
@@ -47,10 +47,18 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--live", action="store_true", help="fetch live public sources")
     build_cmd.add_argument("--out", type=Path, default=Path("dist"), help="output directory")
     build_cmd.add_argument("--fixtures-dir", type=Path, default=DEFAULT_FIXTURES)
+    build_cmd.add_argument(
+        "--global-concurrency",
+        type=int,
+        default=DEFAULT_GLOBAL_CONCURRENCY,
+        help=f"maximum in-flight source requests (default: {DEFAULT_GLOBAL_CONCURRENCY})",
+    )
 
     args = parser.parse_args(argv)
     if args.command != "build":
         parser.error("unknown command")
+    if args.global_concurrency < 1:
+        parser.error("--global-concurrency must be at least 1")
 
     connectors = default_connectors()
     if args.live:
@@ -61,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         transport = fixture_transport(args.fixtures_dir, connectors)
 
-    result = build(connectors, transport)
+    result = build(connectors, transport, global_concurrency=args.global_concurrency)
     manifest = publish(result, args.out)
     print(f"wrote {len(result.artifact.records)} records to {args.out}/")
     for source in manifest["sources"]:

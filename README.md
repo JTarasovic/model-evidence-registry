@@ -50,7 +50,7 @@ uv venv --python 3.12 .venv && . .venv/bin/activate
 uv pip install -e ".[dev]"
 
 registry build --fixtures --out dist/   # deterministic, no network (PoC default)
-registry build --live --out dist/       # best-effort live smoke against public sources
+registry build --live --out dist/ --global-concurrency 8  # best-effort live smoke against public sources
 
 pytest            # determinism + conditional-fetch (200/304) + publish schema/checksum tests
 ruff check . && pyright
@@ -60,6 +60,16 @@ The `--fixtures` build replays the saved responses in [`fixtures/`](fixtures/) b
 identical inputs produce identical checksums. The Agent Foundry side consumes `dist/` via
 `scripts/model-evidence-import.ts`, which verifies the manifest checksums and emits a **reviewable
 diff** against `model-inventory.yaml` without auto-applying.
+
+### Live-fetch limits
+
+Live builds use a bounded worker pool (eight in-flight requests by default; adjust it with
+`--global-concurrency`). Each connector declares a `FetchPolicy` at the transport boundary: a
+shared provider/host key, per-source request concurrency, minimum interval, request timeout, source
+budget, and finite exponential retry policy. Multiple endpoints from one provider should use the
+same source key. Fetch completion never changes artifact ordering: parsed records and source
+snapshots remain in declared connector order. Failed, timed-out, or exhausted sources become
+`error`/`stale` snapshots; cached bytes are retained and are never treated as model deletion.
 
 ## Releases
 

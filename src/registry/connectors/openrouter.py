@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 
+from registry.fetch import FetchPolicy
 from registry.schema import (
     ModelRecord,
     PriceObservation,
@@ -36,6 +37,7 @@ class OpenRouterConnector:
     license = "Provider ToS"
     parser_version = "1"
     trust_level = TrustLevel.THIRD_PARTY_REPORT
+    fetch_policy = FetchPolicy()
 
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)
