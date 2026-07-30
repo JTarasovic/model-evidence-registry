@@ -14,16 +14,18 @@ runtime dependency.
 
 ## Build, Test, and Development Commands
 
-Install the Python 3.12+ development environment with:
+Use `uv` for all environment setup and project commands. The committed `uv.lock` is
+authoritative; use `--locked` so local work matches CI. Install the Python 3.12+
+development environment with:
 
 ```sh
-python -m pip install -e ".[dev]"
+uv sync --locked --all-extras
 ```
 
-- `registry build --fixtures --out dist/` builds the deterministic, offline artifact.
-- `registry build --live --out dist/` fetches supported public sources best-effort.
-- `pytest` runs the fixture-based test suite.
-- `ruff check .` checks lint rules; `pyright` performs standard type checking.
+- `uv run --locked registry build --fixtures --out dist/` builds the deterministic, offline artifact.
+- `uv run --locked registry build --live --out dist/` fetches supported public sources best-effort.
+- `uv run --locked pytest` runs the fixture-based test suite.
+- `uv run --locked ruff check .` checks lint rules; `uv run --locked pyright` performs standard type checking.
 
 Run all three checks before opening a pull request. CI runs them on every push and PR.
 
