@@ -13,7 +13,7 @@ Two independent version lines:
    `records.schema.json`. This is the shape of the data.
 2. **Snapshot release** — each scheduled publish is an immutable, dated GitHub Release
    (`snapshot-YYYY-MM-DD`). This is the _content_ at a point in time. Snapshots are never reused or
-   overwritten; a separate mutable `latest` release mirrors the newest snapshot's assets.
+   overwritten; consumers resolve the newest `snapshot-*` release client-side when they need it.
 
 ## Schema SemVer
 
@@ -55,4 +55,7 @@ benchmarks/settings. See the [design doc](https://github.com/JTarasovic/agent-fo
 `manifest.json` lists every artifact file's SHA-256 (`artifacts[name].sha256`) and byte length; it is
 written last, after all other bytes are known. Scheduled releases additionally carry **build
 provenance attestation** (keyless, SLSA via GitHub OIDC) — verify with `gh attestation verify <file>
---repo JTarasovic/model-evidence-registry`. Sigstore/cosign signing is a planned addition.
+--repo JTarasovic/model-evidence-registry`. They also carry a keyless Sigstore bundle for
+`manifest.json`; verify it with `cosign verify-blob manifest.json --bundle
+manifest.json.sigstore.json`, pinning the publishing workflow identity and GitHub Actions OIDC issuer
+as documented in the README. The signed manifest transitively protects every artifact digest.

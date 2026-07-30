@@ -67,21 +67,36 @@ Snapshots are published as **immutable, dated GitHub Releases** (`snapshot-YYYY-
 scheduled [`publish.yml`](.github/workflows/publish.yml) workflow — never reused, never overwritten.
 Each release carries the full artifact set (`records.json`, `records.schema.json`, `manifest.json`,
 `crosswalk.json`, and one Parquet per record type) plus **build-provenance attestation** (keyless,
-SLSA via GitHub OIDC). A separate, mutable **`latest`** release mirrors the newest snapshot's assets.
+SLSA via GitHub OIDC) and a keyless Sigstore signature for `manifest.json`. There is no mutable
+`latest` release; consumers resolve the newest `snapshot-*` release client-side if needed.
 
 Consumers should **pin a dated release** and validate `records.json` against that release's shipped
 `records.schema.json`. Verify integrity with the checksums in `manifest.json`
-(`artifacts[name].sha256`) and the attestation:
+(`artifacts[name].sha256`) and the build-provenance attestation:
 
 ```sh
 gh release download snapshot-2026-07-29 --repo JTarasovic/model-evidence-registry
 gh attestation verify records.json --repo JTarasovic/model-evidence-registry
 ```
 
+The manifest's Sigstore bundle lets consumers verify it independently of GitHub's attestation API.
+Download both `manifest.json` and `manifest.json.sigstore.json` from the same pinned release, then
+verify the exact publishing workflow identity:
+
+```sh
+cosign verify-blob manifest.json \
+  --bundle manifest.json.sigstore.json \
+  --certificate-identity "https://github.com/JTarasovic/model-evidence-registry/.github/workflows/publish.yml@refs/heads/main" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+```
+
+After verification, check every downloaded release asset against the signed manifest's
+`artifacts[name].sha256` values.
+
 Versioning policy: [`docs/versioning.md`](docs/versioning.md). Contributing (incl. adding a
 connector): [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Status
 
-Public, scheduled snapshots with build-provenance attestation (Phase 3). Cosign/SBOM
-signing and broader provider/claim coverage are follow-ups (ADR 0028).
+Public, scheduled snapshots with build-provenance attestation and keyless Cosign manifest signing
+(Phase 3). SBOM signing and broader provider/claim coverage are follow-ups (ADR 0028).

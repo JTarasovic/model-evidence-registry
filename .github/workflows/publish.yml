@@ -16,7 +16,7 @@ on:
     - cron: "17 7 * * *"
   workflow_dispatch:
 
-# Least privilege for keyless build-provenance attestation + release creation.
+# Least privilege for keyless build-provenance attestation, Cosign signing, and release creation.
 permissions:
   contents: write
   id-token: write
@@ -28,6 +28,8 @@ concurrency:
 
 jobs:
   publish:
+    # The Sigstore certificate identity is pinned to this workflow on main in the consumer docs.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -68,6 +70,15 @@ jobs:
         with:
           subject-path: "dist/*"
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Sign manifest with keyless Sigstore
+        run: |
+          cosign sign-blob --yes \
+            --bundle dist/manifest.json.sigstore.json \
+            dist/manifest.json
+
       - name: Create immutable dated release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,5 +86,5 @@ jobs:
           gh release create "${{ steps.tag.outputs.tag }}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Model-evidence snapshot ${{ steps.tag.outputs.tag }}" \
-            --notes "Immutable model-evidence snapshot. Checksums in manifest.json (artifacts[name].sha256); build provenance attested (verify with \`gh attestation verify\`). Schema version is manifest.json.schema_version." \
+            --notes "Immutable model-evidence snapshot. Checksums in manifest.json (artifacts[name].sha256); build provenance attested (verify with \`gh attestation verify\`); manifest keylessly signed with Cosign (manifest.json.sigstore.json). Schema version is manifest.json.schema_version." \
             dist/*
