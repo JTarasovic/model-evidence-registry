@@ -71,6 +71,12 @@ direct OpenAI API evidence (`openai-api`) is not evidence for an OpenAI Codex su
 `hf-model-cards` and `huggingface` remain distinct `source_id`s (different endpoints, parsers, trust
 levels, licences, and evidence types).
 
+`provider_offering` records require evidence of a specific inference or access service. A model-card
+document, repository identifier, hosted weights, or the location of an evidence source does not by
+itself establish an offering, availability, context limit, or price. The `hf-model-cards` connector
+therefore emits revision-pinned document evidence only; a future Hugging Face inference connector
+must observe that service directly and use its own `source_id`.
+
 The exact canonical slug policy: a developer-prefixed canonical id (`openai/gpt-oss-120b`) is
 acceptable **only** when both the `developer_id` and the model equivalence are explicitly reviewed and
 recorded in `registry/normalize.py::_REVIEWED_IDENTITY`. Lowercasing a free-text developer or

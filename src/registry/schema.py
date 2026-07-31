@@ -90,6 +90,8 @@ class PriceObservation(BaseModel):
 
 
 class ProviderOfferingRecord(_Record):
+    """An observed inference or access-service offering, never repository or weights-hosting metadata."""
+
     record_type: Literal["provider_offering"] = "provider_offering"
     source_model_id: str = Field(
         description="Opaque model id exactly as the source emitted it (source-native, verbatim; may contain '/')."

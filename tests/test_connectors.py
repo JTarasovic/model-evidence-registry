@@ -11,7 +11,7 @@ from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.github_models import GitHubModelsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.groq_docs import GroqDocsConnector
-from registry.connectors.hf_model_cards import MODEL_REPOSITORIES, HfModelCardsConnector
+from registry.connectors.hf_model_cards import HfModelCardsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
@@ -258,7 +258,7 @@ def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures
     assert all(o.source_provider_label == "Cerebras" for o in offerings)
 
 
-def test_hf_model_cards_emit_revision_pinned_documents_and_hub_offerings(fixtures_dir: Path) -> None:
+def test_hf_model_cards_emit_revision_pinned_documents_without_inference_offerings(fixtures_dir: Path) -> None:
     connector = HfModelCardsConnector()
     records = [
         record
@@ -276,11 +276,22 @@ def test_hf_model_cards_emit_revision_pinned_documents_and_hub_offerings(fixture
     assert by_url["https://huggingface.co/api/models/Qwen/Qwen3.6-27B"].revision == (
         "6a9e13bd6fc8f0983b9b99948120bc37f49c13e9"
     )
+    # The organization slash remains part of the opaque source-native repository identifier in the URL.
+    assert "https://huggingface.co/api/models/Qwen/Qwen3.6-27B" in by_url
+    assert not any(isinstance(record, ProviderOfferingRecord) for record in records)
 
-    offerings = [record for record in records if isinstance(record, ProviderOfferingRecord)]
-    assert {offering.source_model_id for offering in offerings} == set(MODEL_REPOSITORIES)
-    assert all(offering.source_provider_label == "Hugging Face Hub" for offering in offerings)
-    assert all(offering.availability_state == "available" for offering in offerings)
+
+def test_hf_model_card_disabled_metadata_never_implies_inference_availability() -> None:
+    connector = HfModelCardsConnector()
+    for disabled in (False, True):
+        records = connector.parse(
+            f'{{"id":"organization/model", "disabled":{str(disabled).lower()}}}'.encode(),
+            observed_at="2026-07-30T00:00:00+00:00",
+        )
+        assert len(records) == 1
+        assert isinstance(records[0], DocumentRecord)
+        assert records[0].url == "https://huggingface.co/api/models/organization/model"
+        assert not any(isinstance(record, ProviderOfferingRecord) for record in records)
 
 
 def test_hf_model_cards_fixture_build_keeps_one_snapshot_per_card(fixtures_dir: Path) -> None:
@@ -340,3 +351,16 @@ def test_huggingface_parses_live_leaderboard_shape_without_merging_configs(fixtu
     assert by_model["moonshotai/Kimi-K2.6"].split == ".eval_results/hle_with_tools.yaml"
     assert by_model["moonshotai/Kimi-K3"].provenance_url == "https://huggingface.co/moonshotai/Kimi-K3"
     assert all(e.comparability_status == ComparabilityStatus.NEEDS_REVIEW for e in evals)
+
+
+def test_huggingface_connectors_remain_distinct_registered_evidence_sources(fixtures_dir: Path) -> None:
+    connectors = default_connectors()
+    assert {connector.source_id for connector in connectors} >= {"hf-model-cards", "huggingface"}
+
+    card_connector = HfModelCardsConnector()
+    card_records = card_connector.parse(_body(fixtures_dir, card_connector, card_connector.url))
+    leaderboard_records = HuggingFaceConnector().parse(_body(fixtures_dir, HuggingFaceConnector()))
+    assert all(isinstance(record, DocumentRecord) for record in card_records)
+    assert all(record.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM for record in card_records)
+    assert all(isinstance(record, EvaluationResultRecord) for record in leaderboard_records)
+    assert all(record.trust_level == TrustLevel.BENCHMARK_MAINTAINER_LEADERBOARD for record in leaderboard_records)

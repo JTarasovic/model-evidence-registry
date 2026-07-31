@@ -18,7 +18,7 @@ record types**, and publish a validated, checksummed artifact:
 | Record type         | Meaning                                                                        |
 | ------------------- | ------------------------------------------------------------------------------ |
 | `model`             | Canonical id, publisher/developer, family, release, aliases.                   |
-| `provider_offering` | Availability, modalities, context/output limits, pricing **observation**.      |
+| `provider_offering` | An observed inference/access-service offering: availability, modalities, context/output limits, and pricing. |
 | `document`          | A fetched asset: url, hash/etag, retrieval time, redistribution policy.        |
 | `evaluation_result` | A benchmark result with id/version/split/metric + harness/agent/comparability. |
 | `claim`             | A reported number **not** backed by a reproducible result row.                 |
@@ -39,7 +39,8 @@ agent/reasoning settings.
 - **Hugging Face** — the public `cais/hle` leaderboard API, with source-native evaluation
   configuration filenames retained as distinct result splits.
 - **Hugging Face model cards** — a finite, consumer-inventory-driven set of official model-card API
-  responses, pinned to source revisions and represented as hash + extracted facts only.
+  responses, pinned to source revisions and represented as hash + extracted facts only. Hub repository
+  or weights-hosting metadata is document evidence, not an inference offering.
 - **SWE-bench** `master/data/leaderboards.json` — official resolved-% (rows without logs+trajs → `claim`).
   Stored **hash + facts only** (the site repo is NOASSERTION-licensed).
 - **Terminal-Bench 2.0** — official versioned leaderboard rows (Apache-2.0); compound submissions remain

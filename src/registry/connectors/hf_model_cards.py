@@ -1,9 +1,10 @@
 """Configured Hugging Face official model-card connector.
 
 The Hub model-info API supplies a model repository's immutable revision and card metadata without
-requiring a token.  This connector deliberately fetches only the official repositories required by
-the consumer inventory; it is not a broad crawl of the Hub.  Each response becomes a separate
-hash-and-facts-only ``DocumentRecord`` plus an offering for the Hub-hosted weights.
+requiring a token. This connector deliberately fetches only the official repositories required by
+the consumer inventory; it is not a broad crawl of the Hub. Each response becomes a separate
+hash-and-facts-only ``DocumentRecord``. Repository and weights-hosting metadata is not evidence of
+an inference/access-service offering.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from __future__ import annotations
 import json
 
 from registry.fetch import FetchPolicy, sha256_hex
-from registry.schema import DocumentRecord, ProviderOfferingRecord, Record, TrustLevel
+from registry.schema import DocumentRecord, Record, TrustLevel
 
 MODEL_REPOSITORIES = (
     "nvidia/Nemotron-3-Ultra-550B-A55B",
@@ -64,10 +65,6 @@ class HfModelCardsConnector:
         revision = model.get("sha")
         if revision is not None and not isinstance(revision, str):
             raise ValueError("Hugging Face model-info sha must be a string when present")
-        card_data = model.get("cardData")
-        if card_data is not None and not isinstance(card_data, dict):
-            raise ValueError("Hugging Face model-info cardData must be an object when present")
-
         return [
             DocumentRecord(
                 source_id=self.source_id,
@@ -78,16 +75,5 @@ class HfModelCardsConnector:
                 content_sha256=sha256_hex(body),
                 retrieved_at=observed_at,
                 redistribution_policy="hash_and_facts_only",
-            ),
-            ProviderOfferingRecord(
-                source_id=self.source_id,
-                trust_level=self.trust_level,
-                source_model_id=model_id,
-                # A model card is a Hub listing, not a registry-owned inference/access service, so
-                # ``service_id`` stays null; the Hub is recorded only as the verbatim source provider.
-                service_id=None,
-                source_provider_label="Hugging Face Hub",
-                availability_state="unavailable" if model.get("disabled") is True else "available",
-                observed_at=observed_at,
             ),
         ]
