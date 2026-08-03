@@ -1,14 +1,11 @@
 # model-evidence-registry
 
-A reproducible, provenance-first **model-evidence registry** — a proof of concept for Phase 2 of the
-Agent Foundry model-evidence work (issue #168), governed by
-[ADR 0028](https://github.com/JTarasovic/agent-foundry/blob/main/docs/adrs/0028-model-evidence-registry-adopt-vs-build.md)
-and the [design doc](https://github.com/JTarasovic/agent-foundry/blob/main/docs/designs/model-evidence-registry.md).
+A reproducible, provenance-first **model-evidence registry**.
 
-> **Boundary invariant.** This repo never imports Agent Foundry code, and Agent Foundry never imports
+> **Boundary invariant.** This repo never imports consumers code, and consumers never import
 > this repo's code. The only contract between them is the published, versioned artifact
 > (`records.json` + `records.parquet` + `manifest.json` + `records.schema.json`) plus its JSON Schema.
-> This repo is **advisory evidence** — it proposes; a human reviews and Agent Foundry decides.
+> This repo is **advisory evidence** — it proposes; a human reviews and consumer decides.
 
 ## What it does
 
