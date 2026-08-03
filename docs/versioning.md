@@ -67,9 +67,11 @@ example, deriving a canonical id from an access provider) is the bug corrected i
 | `canonical_model_id` | reviewed cross-source identity, when known; `null` when unmapped. Never derived from `service_id`. |
 
 Direct-provider API access and any subscription/product access path are **distinct** `service_id`s:
-direct OpenAI API evidence (`openai-api`) is not evidence for an OpenAI Codex subscription route.
-`hf-model-cards` and `huggingface` remain distinct `source_id`s (different endpoints, parsers, trust
-levels, licences, and evidence types).
+Codex subscription access is not the direct OpenAI API (`openai-api`), and GitHub Copilot (in-IDE)
+is not GitHub Models (catalogue). Each requires its own product-specific connector; see
+[#10](https://github.com/JTarasovic/model-evidence-registry/issues/10). `hf-model-cards` and
+`huggingface` remain distinct `source_id`s (different endpoints, parsers, trust levels, licences,
+and evidence types).
 
 `provider_offering` records require evidence of a specific inference or access service. A model-card
 document, repository identifier, hosted weights, or the location of an evidence source does not by

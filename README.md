@@ -34,6 +34,8 @@ agent/reasoning settings.
   represented as **hash + extracted facts only**, not re-hosted.
 - **Anthropic Claude Code configuration** — official Claude Code catalogue evidence, separate from
   the direct Anthropic API. Subscription-plan limits remain source-qualified rather than inferred.
+- **OpenAI direct API models** — official Platform API model-index evidence for `openai-api`, not
+  Codex subscription access.
 - **OpenAI Codex models** — official Codex product catalogue evidence, separate from the Platform
   API model index.
 - **GitHub Copilot supported models** — official Copilot catalogue evidence, separate from GitHub
