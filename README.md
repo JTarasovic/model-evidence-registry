@@ -32,6 +32,12 @@ agent/reasoning settings.
 
 - **Anthropic Models overview** — official direct-Claude-API availability evidence. Documentation is
   represented as **hash + extracted facts only**, not re-hosted.
+- **Anthropic Claude Code configuration** — official Claude Code catalogue evidence, separate from
+  the direct Anthropic API. Subscription-plan limits remain source-qualified rather than inferred.
+- **OpenAI Codex models** — official Codex product catalogue evidence, separate from the Platform
+  API model index.
+- **GitHub Copilot supported models** — official Copilot catalogue evidence, separate from GitHub
+  Models; client, plan, and organization-policy restrictions remain source-qualified.
 - **Cerebras public model catalog** — official keyless availability, modality, token-limit, and pricing
   evidence; represented as **hash + extracted facts only**.
 - **models.dev** — offering/pricing/capability/context evidence (MIT).

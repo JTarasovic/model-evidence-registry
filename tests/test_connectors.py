@@ -4,10 +4,12 @@ from pathlib import Path
 
 from registry.build import build, connector_urls, fixture_filename, fixture_transport
 from registry.connectors import default_connectors
+from registry.connectors.anthropic_claude_code_docs import AnthropicClaudeCodeDocsConnector
 from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.base import Connector
 from registry.connectors.cerebras_models import CerebrasModelsConnector
 from registry.connectors.cohere_docs import CohereDocsConnector
+from registry.connectors.github_copilot_docs import GitHubCopilotDocsConnector
 from registry.connectors.github_models import GitHubModelsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.groq_docs import GroqDocsConnector
@@ -15,6 +17,7 @@ from registry.connectors.hf_model_cards import HfModelCardsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
+from registry.connectors.openai_codex_docs import OpenAICodexDocsConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
 from registry.connectors.swebench import SweBenchConnector
 from registry.connectors.terminal_bench import TerminalBenchConnector
@@ -96,6 +99,54 @@ def test_openai_docs_emits_hash_only_document_and_direct_api_offerings(fixtures_
     assert {o.source_model_id for o in offerings} == {"gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini"}
     assert all(o.source_provider_label == "OpenAI" for o in offerings)
     assert all(o.availability_state == "available" for o in offerings)
+
+
+def test_openai_codex_docs_emits_product_scoped_offerings(fixtures_dir: Path) -> None:
+    connector = OpenAICodexDocsConnector()
+    records = connector.parse(_body(fixtures_dir, connector), observed_at="2026-08-03T00:00:00+00:00")
+
+    docs = [record for record in records if isinstance(record, DocumentRecord)]
+    offerings = [record for record in records if isinstance(record, ProviderOfferingRecord)]
+    assert len(docs) == 1
+    assert docs[0].kind == "product_doc"
+    assert docs[0].content_sha256 == sha256_hex(_body(fixtures_dir, connector))
+    assert {offering.source_model_id for offering in offerings} == {"gpt-5.6-luna", "gpt-5.6-sol"}
+    assert all(offering.service_id == "openai-codex" for offering in offerings)
+    assert all(offering.source_provider_label == "OpenAI" for offering in offerings)
+
+
+def test_anthropic_claude_code_docs_emits_product_scoped_offerings(fixtures_dir: Path) -> None:
+    connector = AnthropicClaudeCodeDocsConnector()
+    records = connector.parse(_body(fixtures_dir, connector), observed_at="2026-08-03T00:00:00+00:00")
+
+    docs = [record for record in records if isinstance(record, DocumentRecord)]
+    offerings = [record for record in records if isinstance(record, ProviderOfferingRecord)]
+    assert len(docs) == 1
+    assert docs[0].kind == "product_doc"
+    assert {offering.source_model_id for offering in offerings} == {
+        "claude-fable-5",
+        "claude-opus-5",
+        "claude-sonnet-5",
+    }
+    assert all(offering.service_id == "anthropic-claude-code" for offering in offerings)
+    assert all(offering.source_provider_label == "Anthropic" for offering in offerings)
+
+
+def test_github_copilot_docs_emits_product_scoped_offerings(fixtures_dir: Path) -> None:
+    connector = GitHubCopilotDocsConnector()
+    records = connector.parse(_body(fixtures_dir, connector), observed_at="2026-08-03T00:00:00+00:00")
+
+    docs = [record for record in records if isinstance(record, DocumentRecord)]
+    offerings = [record for record in records if isinstance(record, ProviderOfferingRecord)]
+    assert len(docs) == 1
+    assert docs[0].kind == "product_doc"
+    assert {offering.source_model_id for offering in offerings} == {
+        "GPT-5.6 Sol",
+        "Claude Opus 4.8 (fast mode) (preview)",
+        "Gemini 3.1 Pro",
+    }
+    assert {offering.source_provider_label for offering in offerings} == {"OpenAI", "Anthropic", "Google"}
+    assert all(offering.service_id == "github-copilot" for offering in offerings)
 
 
 def test_google_gemini_docs_emits_hash_only_document_and_current_api_offerings(fixtures_dir: Path) -> None:

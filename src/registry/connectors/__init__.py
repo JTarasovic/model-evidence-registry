@@ -2,6 +2,7 @@
 
 import os
 
+from registry.connectors.anthropic_claude_code_docs import AnthropicClaudeCodeDocsConnector
 from registry.connectors.anthropic_docs import AnthropicDocsConnector
 from registry.connectors.artificial_analysis import (
     API_KEY_ENV as ARTIFICIAL_ANALYSIS_API_KEY_ENV,
@@ -10,6 +11,7 @@ from registry.connectors.artificial_analysis import ArtificialAnalysisConnector
 from registry.connectors.base import Connector
 from registry.connectors.cerebras_models import CerebrasModelsConnector
 from registry.connectors.cohere_docs import CohereDocsConnector
+from registry.connectors.github_copilot_docs import GitHubCopilotDocsConnector
 from registry.connectors.github_models import GitHubModelsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
 from registry.connectors.groq_docs import GroqDocsConnector
@@ -17,6 +19,7 @@ from registry.connectors.hf_model_cards import HfModelCardsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
+from registry.connectors.openai_codex_docs import OpenAICodexDocsConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
 from registry.connectors.openrouter import OpenRouterConnector
 from registry.connectors.swebench import SweBenchConnector
@@ -24,11 +27,13 @@ from registry.connectors.terminal_bench import TerminalBenchConnector
 
 __all__ = [
     "ArtificialAnalysisConnector",
+    "AnthropicClaudeCodeDocsConnector",
     "AnthropicDocsConnector",
     "CerebrasModelsConnector",
     "CohereDocsConnector",
     "Connector",
     "GoogleGeminiDocsConnector",
+    "GitHubCopilotDocsConnector",
     "GitHubModelsConnector",
     "GroqDocsConnector",
     "HuggingFaceConnector",
@@ -36,6 +41,7 @@ __all__ = [
     "ModelsDevConnector",
     "MistralDocsConnector",
     "OpenAIDocsConnector",
+    "OpenAICodexDocsConnector",
     "OpenRouterConnector",
     "SweBenchConnector",
     "TerminalBenchConnector",
@@ -46,12 +52,15 @@ def default_connectors() -> list[Connector]:
     """The PoC connector set (public sources only, no credentials)."""
     return [
         AnthropicDocsConnector(),
+        AnthropicClaudeCodeDocsConnector(),
         OpenAIDocsConnector(),
+        OpenAICodexDocsConnector(),
         GoogleGeminiDocsConnector(),
         CohereDocsConnector(),
         GroqDocsConnector(),
         MistralDocsConnector(),
         GitHubModelsConnector(),
+        GitHubCopilotDocsConnector(),
         CerebrasModelsConnector(),
         ModelsDevConnector(),
         OpenRouterConnector(),
