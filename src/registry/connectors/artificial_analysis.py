@@ -52,9 +52,7 @@ class ArtificialAnalysisConnector:
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)
         if not isinstance(data, dict):
-            raise ValueError(
-                f"unexpected Artificial Analysis shape: expected a JSON object, got {type(data).__name__}"
-            )
+            raise ValueError(f"unexpected Artificial Analysis shape: expected a JSON object, got {type(data).__name__}")
         models = data.get("data", [])
         records: list[Record] = []
         for model in sorted(models, key=lambda m: str(m.get("slug", m.get("id", "")))):

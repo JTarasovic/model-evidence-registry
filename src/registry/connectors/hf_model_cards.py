@@ -40,9 +40,7 @@ def model_info_url(repository: str) -> str:
 
 
 MODEL_INFO_URLS = tuple(model_info_url(repository) for repository in MODEL_REPOSITORIES)
-FIXTURE_FILENAMES = {
-    url: f"hf-model-card-{index:02d}.json" for index, url in enumerate(MODEL_INFO_URLS, start=1)
-}
+FIXTURE_FILENAMES = {url: f"hf-model-card-{index:02d}.json" for index, url in enumerate(MODEL_INFO_URLS, start=1)}
 
 
 class HfModelCardsConnector:
