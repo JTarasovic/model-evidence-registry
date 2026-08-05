@@ -30,6 +30,9 @@ jobs:
       - name: Ruff (lint)
         run: uv run --locked ruff check .
 
+      - name: Ruff (format check)
+        run: uv run --locked ruff format --check .
+
       - name: Pyright (typecheck)
         run: uv run --locked pyright
 
