@@ -92,9 +92,7 @@ def test_crosswalk_is_independent_of_record_emission_order() -> None:
 def test_evidence_record_ids_stay_source_native(fixtures_dir: Path) -> None:
     result = _build(fixtures_dir)
     offering_ids = {
-        r.model_dump()["source_model_id"]
-        for r in result.artifact.records
-        if r.record_type == "provider_offering"
+        r.model_dump()["source_model_id"] for r in result.artifact.records if r.record_type == "provider_offering"
     }
     # The raw models.dev key is present untouched (would be absent if we had canonicalized it).
     assert "claude-opus-4" in offering_ids

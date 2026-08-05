@@ -42,9 +42,7 @@ class _OutOfOrderTransport:
         self._all_started = Event()
         self._lock = Lock()
 
-    def request(
-        self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None
-    ) -> RawResponse:  # noqa: ARG002
+    def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:  # noqa: ARG002
         with self._lock:
             self._started += 1
             if self._started == self._count:
@@ -76,9 +74,7 @@ class _GatedTransport:
         self.max_active = 0
         self._lock = Lock()
 
-    def request(
-        self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None
-    ) -> RawResponse:  # noqa: ARG002
+    def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:  # noqa: ARG002
         source = url.split("//", maxsplit=1)[1].split(".", maxsplit=1)[0]
         gate = self.release.setdefault(source, Event())
         with self._lock:
@@ -182,9 +178,7 @@ class _FailingTransport:
     def __init__(self) -> None:
         self.requests = 0
 
-    def request(
-        self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None
-    ) -> RawResponse:  # noqa: ARG002
+    def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:  # noqa: ARG002
         self.requests += 1
         return RawResponse(status=503)
 

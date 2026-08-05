@@ -202,9 +202,7 @@ def conditional_fetch(
     if retries < 0 or backoff_seconds < 0 or jitter_seconds < 0 or timeout_seconds <= 0:
         raise ValueError("invalid fetch retry or timeout configuration")
     current_clock = clock or SystemClock()
-    deadline = (
-        current_clock.monotonic() + source_budget_seconds if source_budget_seconds is not None else None
-    )
+    deadline = current_clock.monotonic() + source_budget_seconds if source_budget_seconds is not None else None
     prior = cache.validators_for(url)
     headers: dict[str, str] = dict(extra_headers or {})
     if prior.etag:

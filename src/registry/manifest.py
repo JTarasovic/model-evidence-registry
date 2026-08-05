@@ -38,7 +38,6 @@ def build_manifest(
         "generated_at": generated_at,
         "sources": [source_entry(s) for s in sorted(snapshots, key=lambda s: s.source_id)],
         "artifacts": {
-            name: {"sha256": sha256_hex(data), "bytes": len(data)}
-            for name, data in sorted(artifact_files.items())
+            name: {"sha256": sha256_hex(data), "bytes": len(data)} for name, data in sorted(artifact_files.items())
         },
     }

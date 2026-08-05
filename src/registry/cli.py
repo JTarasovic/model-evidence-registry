@@ -1,7 +1,7 @@
 """``registry`` CLI — build the artifact from fixtures (default) or live sources.
 
-    registry build --fixtures --out dist/     # deterministic, no network (PoC default)
-    registry build --live --out dist/         # hit real public sources (best-effort smoke)
+registry build --fixtures --out dist/     # deterministic, no network (PoC default)
+registry build --live --out dist/         # hit real public sources (best-effort smoke)
 """
 
 from __future__ import annotations

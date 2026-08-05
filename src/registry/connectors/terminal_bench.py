@@ -34,7 +34,7 @@ class TerminalBenchConnector:
         # The official page's React Server Component payload serializes the rows as escaped JSON.
         # Decode its quote escapes, then let JSONDecoder stop precisely at the end of the array.
         page = body.decode("utf-8")
-        decoded = page.replace(r'\"', '"')
+        decoded = page.replace(r"\"", '"')
         marker = '"rows":'
         start = decoded.find(marker)
         if start < 0:

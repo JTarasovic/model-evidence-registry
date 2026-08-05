@@ -32,9 +32,7 @@ class HuggingFaceConnector:
     def parse(self, body: bytes, observed_at: str = "") -> list[Record]:
         data = json.loads(body)
         if not isinstance(data, list) or not all(isinstance(entry, dict) for entry in data):
-            raise ValueError(
-                "unexpected HuggingFace leaderboard shape: expected a JSON array of leaderboard rows"
-            )
+            raise ValueError("unexpected HuggingFace leaderboard shape: expected a JSON array of leaderboard rows")
         records: list[Record] = []
         for entry in sorted(data, key=lambda entry: (str(entry.get("modelId", "")), str(entry.get("filename", "")))):
             verified = entry.get("verified")
@@ -54,9 +52,7 @@ class HuggingFaceConnector:
                     direction=("lower_is_better" if entry.get("lower_is_better") else "higher_is_better"),
                     provenance_url=provenance_url,
                     comparability_status=(
-                        ComparabilityStatus.COMPARABLE
-                        if verified
-                        else ComparabilityStatus.NEEDS_REVIEW
+                        ComparabilityStatus.COMPARABLE if verified else ComparabilityStatus.NEEDS_REVIEW
                     ),
                 )
             )
