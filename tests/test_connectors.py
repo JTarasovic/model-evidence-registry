@@ -97,9 +97,19 @@ def test_anthropic_docs_emits_hash_only_document_and_direct_api_offerings(fixtur
     assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
-    assert {o.source_model_id for o in offerings} == {"claude-haiku-4-5", "claude-opus-4-6", "claude-sonnet-4-6"}
+    by_id = {o.source_model_id: o for o in offerings}
+    assert set(by_id) == {"claude-haiku-4-5", "claude-opus-4-5", "claude-opus-4-6", "claude-sonnet-4-6"}
     assert all(o.source_provider_label == "Anthropic" for o in offerings)
     assert all(o.availability_state == "available" for o in offerings)
+
+    # Reasoning is the one capability the overview table documents per model: True when either
+    # thinking row says Yes, a real documented False when both say No, and None when a table (the
+    # legacy one) carries no thinking rows at all. Tool use / structured output are not in the table.
+    assert by_id["claude-opus-4-6"].reasoning is True  # adaptive thinking Yes
+    assert by_id["claude-sonnet-4-6"].reasoning is True  # extended thinking Yes
+    assert by_id["claude-haiku-4-5"].reasoning is False  # both thinking rows No
+    assert by_id["claude-opus-4-5"].reasoning is None  # legacy table documents no thinking rows
+    assert all(o.tool_use is None and o.structured_output is None for o in offerings)
 
 
 def test_openai_docs_emits_hash_only_document_and_direct_api_offerings(fixtures_dir: Path) -> None:

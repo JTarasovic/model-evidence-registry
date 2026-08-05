@@ -1,7 +1,9 @@
 <!doctype html>
 <html data-build-id="fixture-revision-20260729">
   <body>
-    <!-- Facts-only fixture: a minimal table shaped like the official Models overview. -->
+    <!-- Facts-only fixture: minimal tables shaped like the official Models overview. The latest
+         table carries the "Extended thinking" / "Adaptive thinking" rows the page documents per
+         model; the legacy table omits them, so its model's reasoning is left undocumented (None). -->
     <table>
       <tr>
         <th>Model</th>
@@ -20,6 +22,32 @@
         <td>anthropic.claude-opus-4-6-v1:0</td>
         <td>anthropic.claude-sonnet-4-6-v1:0</td>
         <td>anthropic.claude-haiku-4-5-v1:0</td>
+      </tr>
+      <tr>
+        <td>Extended thinking (<code>thinking.type: "enabled"</code>)</td>
+        <td>No</td>
+        <td>Yes</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>Adaptive thinking</td>
+        <td>Yes (always on)</td>
+        <td>Yes</td>
+        <td>No</td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <th>Model</th>
+        <th>Claude Opus 4.5</th>
+      </tr>
+      <tr>
+        <td>Claude API ID</td>
+        <td><span>claude-opus-4-5</span></td>
+      </tr>
+      <tr>
+        <td>AWS Bedrock ID</td>
+        <td>anthropic.claude-opus-4-5-v1:0</td>
       </tr>
     </table>
   </body>
