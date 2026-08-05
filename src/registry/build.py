@@ -149,6 +149,79 @@ def _fetch_url(
     )
 
 
+def _run_jobs(
+    jobs: Sequence[tuple[Connector, str, FetchPolicy]],
+    transport: Transport,
+    cache: FetchCache,
+    limiter: SourceRateLimiter,
+    clock: Clock,
+    global_concurrency: int,
+) -> list[FetchResult]:
+    """Run one bounded, per-source-rate-limited wave of fetches, returning results in ``jobs`` order.
+
+    A finite worker pool bounds all in-flight transport requests.  At most each source policy's
+    request concurrency is submitted at once, so a rate-delayed provider cannot fill the pool and
+    make unrelated hosts wait behind its sleeps.  Results are returned in job order, not completion
+    order, so the artifact and manifest remain stable.  The shared ``limiter`` carries per-source
+    spacing across successive waves (e.g. a crawl's seed and follow-up fetches).
+    """
+    pending = list(enumerate(jobs))
+    results_by_index: dict[int, FetchResult] = {}
+    active_by_source: dict[str, int] = {}
+    with ThreadPoolExecutor(max_workers=global_concurrency, thread_name_prefix="registry-fetch") as executor:
+        futures: dict[Future[FetchResult], tuple[int, str]] = {}
+        while pending or futures:
+            while len(futures) < global_concurrency:
+                eligible_index = next(
+                    (
+                        index
+                        for index, (_, (connector, url, policy)) in enumerate(pending)
+                        if active_by_source.get(policy.key_for(url), 0) < policy.max_concurrency
+                    ),
+                    None,
+                )
+                if eligible_index is None:
+                    break
+                connector_index, (connector, url, policy) = pending.pop(eligible_index)
+                source_key = policy.key_for(url)
+                active_by_source[source_key] = active_by_source.get(source_key, 0) + 1
+                future = executor.submit(_fetch_url, connector, url, transport, cache, policy, limiter, clock)
+                futures[future] = (connector_index, source_key)
+            if not futures:
+                raise RuntimeError("fetch scheduler found no eligible connector")
+            done, _ = wait(futures, return_when=FIRST_COMPLETED)
+            for future in done:
+                connector_index, source_key = futures.pop(future)
+                active_by_source[source_key] -= 1
+                results_by_index[connector_index] = future.result()
+    return [results_by_index[index] for index in range(len(jobs))]
+
+
+def _discover_jobs(
+    seed_jobs: Sequence[tuple[Connector, str, FetchPolicy]],
+    seed_results: Sequence[FetchResult],
+) -> list[tuple[Connector, str, FetchPolicy]]:
+    """Ask each crawl connector for follow-up URLs derived from its fetched seed body.
+
+    A connector opts into crawling by exposing ``discover(url, body) -> tuple[str, ...]``.  This is a
+    bounded, structural expansion (e.g. an index's own model rows -> per-model detail pages), not a
+    link-following web crawl: each discovered URL inherits the seed's fetch policy, so it shares the
+    provider's rate limit.  URLs already fetched (seeds or earlier discoveries) are skipped.
+    """
+    discovered: list[tuple[Connector, str, FetchPolicy]] = []
+    seen = {url for _, url, _ in seed_jobs}
+    for (connector, url, policy), result in zip(seed_jobs, seed_results, strict=True):
+        discover = getattr(connector, "discover", None)
+        if not callable(discover) or result.outcome not in ("ok", "not_modified") or not result.body:
+            continue
+        for follow_up in cast("tuple[str, ...]", discover(url, result.body)):
+            if follow_up in seen:
+                continue
+            seen.add(follow_up)
+            discovered.append((connector, follow_up, policy))
+    return discovered
+
+
 def build(
     connectors: Sequence[Connector],
     transport: Transport,
@@ -176,74 +249,85 @@ def build(
     if isinstance(transport, FixtureTransport):
         policies = [replace(policy, min_interval_seconds=0.0) for policy in policies]
     limiter = SourceRateLimiter(current_clock)
-    # A finite worker pool bounds all in-flight transport requests.  At most each source policy's
-    # request concurrency is submitted at once, so a rate-delayed provider cannot fill the pool and
-    # make unrelated hosts wait behind its sleeps.  Results are consumed below in declared connector
-    # order, not completion order, so the artifact and manifest remain stable.
-    jobs = [
+
+    # Wave 1: every connector's declared seed URL(s).  Wave 2: the follow-up detail URLs crawl
+    # connectors discover from their seed bodies.  The shared limiter carries per-source spacing
+    # across both waves so a crawl cannot outrun its provider's rate limit.
+    seed_jobs = [
         (connector, url, policy)
         for connector, policy in zip(connectors, policies, strict=True)
         for url in connector_urls(connector)
     ]
-    pending = list(enumerate(jobs))
-    results_by_index: dict[int, FetchResult] = {}
-    active_by_source: dict[str, int] = {}
-    with ThreadPoolExecutor(max_workers=global_concurrency, thread_name_prefix="registry-fetch") as executor:
-        futures: dict[Future[FetchResult], tuple[int, str]] = {}
-        while pending or futures:
-            while len(futures) < global_concurrency:
-                eligible_index = next(
-                    (
-                        index
-                        for index, (_, (connector, url, policy)) in enumerate(pending)
-                        if active_by_source.get(policy.key_for(url), 0) < policy.max_concurrency
-                    ),
-                    None,
-                )
-                if eligible_index is None:
-                    break
-                connector_index, (connector, url, policy) = pending.pop(eligible_index)
-                source_key = policy.key_for(url)
-                active_by_source[source_key] = active_by_source.get(source_key, 0) + 1
-                future = executor.submit(_fetch_url, connector, url, transport, cache, policy, limiter, current_clock)
-                futures[future] = (connector_index, source_key)
-            if not futures:
-                raise RuntimeError("fetch scheduler found no eligible connector")
-            done, _ = wait(futures, return_when=FIRST_COMPLETED)
-            for future in done:
-                connector_index, source_key = futures.pop(future)
-                active_by_source[source_key] -= 1
-                results_by_index[connector_index] = future.result()
+    seed_results = _run_jobs(seed_jobs, transport, cache, limiter, current_clock, global_concurrency)
+    detail_jobs = _discover_jobs(seed_jobs, seed_results)
+    detail_results = _run_jobs(detail_jobs, transport, cache, limiter, current_clock, global_concurrency)
 
-    results = [results_by_index[index] for index in range(len(jobs))]
+    all_jobs = [*seed_jobs, *detail_jobs]
+    all_results = [*seed_results, *detail_results]
 
-    for (connector, _url, _policy), result in zip(jobs, results, strict=True):
-        snapshot = snapshot_from_fetch(connector, result)
+    # Group every fetched (url, result) under its connector, preserving order (seeds first, then the
+    # connector's discovered detail pages).  Grouping lets a crawl connector's ``parse_all`` see all
+    # of its bodies at once, while plain connectors keep the pure per-body ``parse`` path.
+    fetched_by_connector: dict[int, tuple[Connector, list[tuple[str, FetchResult]]]] = {}
+    for (connector, url, _policy), result in zip(all_jobs, all_results, strict=True):
+        entry = fetched_by_connector.setdefault(id(connector), (connector, []))
+        entry[1].append((url, result))
+
+    for connector, fetched in fetched_by_connector.values():
         # Pin every record's retrieval/observation time to the build's single timestamp so identical
         # inputs produce byte-identical output (and identical checksums), rather than a fresh
         # wall-clock reading per source.
-        snapshot = snapshot.model_copy(update={"retrieved_at": generated_at})
-        if result.outcome in ("ok", "not_modified") and result.body:
-            # A connector parses raw source bytes it does not control. A live source can return HTTP
-            # 200 with a body whose *shape* the parser doesn't expect (e.g. an endpoint that starts
-            # returning a list instead of the documented object). That is a source failure, not a
-            # reason to crash the whole build and drop every other source — so we downgrade this one
-            # source's snapshot to a recorded parse error and emit no records for it, exactly as we
-            # already do for a fetch error. Absence of parseable evidence is never a deletion (§5).
-            try:
-                parsed = connector.parse(result.body, observed_at=generated_at)
-            except Exception as exc:  # noqa: BLE001 - isolate one bad source; record, don't crash
-                snapshot = snapshot.model_copy(
-                    update={
-                        "fetch_outcome": FetchOutcome.ERROR,
-                        "error": f"parse failed: {type(exc).__name__}: {exc}",
-                    }
-                )
-            else:
-                records.extend(parsed)
+        connector_snapshots = [
+            snapshot_from_fetch(connector, result).model_copy(update={"retrieved_at": generated_at})
+            for _url, result in fetched
+        ]
+        # A connector parses raw source bytes it does not control. A live source can return HTTP 200
+        # with a body whose *shape* the parser doesn't expect. That is a source failure, not a reason
+        # to crash the whole build and drop every other source — so we downgrade the affected
+        # snapshot(s) to a recorded parse error and emit no records, exactly as for a fetch error.
+        # Absence of parseable evidence is never a deletion (§5).
+        parse_all = getattr(connector, "parse_all", None)
+        if callable(parse_all):
+            bodies = {
+                url: (result.body if result.outcome in ("ok", "not_modified") else None)
+                for url, result in fetched
+            }
+            if any(body for body in bodies.values()):
+                try:
+                    parsed = cast("list[Record]", parse_all(bodies, observed_at=generated_at))
+                    records.extend(parsed)
+                except Exception as exc:  # noqa: BLE001 - isolate one bad source; record, don't crash
+                    # A crawl fails as a unit: downgrade the successfully-fetched snapshots (a
+                    # per-URL fetch error keeps its own, more specific outcome).
+                    connector_snapshots = [
+                        snapshot.model_copy(
+                            update={
+                                "fetch_outcome": FetchOutcome.ERROR,
+                                "error": f"parse failed: {type(exc).__name__}: {exc}",
+                            }
+                        )
+                        if snapshot.fetch_outcome in (FetchOutcome.OK, FetchOutcome.NOT_MODIFIED)
+                        else snapshot
+                        for snapshot in connector_snapshots
+                    ]
+        else:
+            updated: list = []
+            for (_url, result), snapshot in zip(fetched, connector_snapshots, strict=True):
+                if result.outcome in ("ok", "not_modified") and result.body:
+                    try:
+                        records.extend(connector.parse(result.body, observed_at=generated_at))
+                    except Exception as exc:  # noqa: BLE001 - isolate one bad source; record, don't crash
+                        snapshot = snapshot.model_copy(
+                            update={
+                                "fetch_outcome": FetchOutcome.ERROR,
+                                "error": f"parse failed: {type(exc).__name__}: {exc}",
+                            }
+                        )
+                updated.append(snapshot)
+            connector_snapshots = updated
         # On error/stale (fetch or parse) nothing is *removed*: absence of a fresh, parseable response
         # is not evidence a model disappeared — the snapshot alone records the failure.
-        snapshots.append(snapshot)
+        snapshots.extend(connector_snapshots)
     # Advisory crosswalk is built from the evidence records' *source-native* ids (before appending
     # the snapshots, which carry no model identity).
     crosswalk = Crosswalk(generated_at=generated_at, entries=build_crosswalk(records))
@@ -253,14 +337,18 @@ def build(
 
 
 def fixture_transport(fixtures_dir: Path, connectors: list[Connector]) -> FixtureTransport:
-    return FixtureTransport(
-        fixtures_dir=fixtures_dir,
-        url_to_fixture={
-            url: fixture_filename(connector, url)
-            for connector in connectors
-            for url in connector_urls(connector)
-        },
-    )
+    mapping: dict[str, str] = {}
+    for connector in connectors:
+        # A crawl connector fetches detail URLs its seed page reveals at runtime, so those URLs are
+        # not in ``connector_urls``.  Its ``fixture_filenames`` map enumerates every URL — seed and
+        # detail — the deterministic fixture build will fetch, so replay them all from it.
+        fixture_filenames = getattr(connector, "fixture_filenames", None)
+        if isinstance(fixture_filenames, dict):
+            mapping.update(fixture_filenames)
+        else:
+            for url in connector_urls(connector):
+                mapping[url] = fixture_filename(connector, url)
+    return FixtureTransport(fixtures_dir=fixtures_dir, url_to_fixture=mapping)
 
 
 def fixture_filename(connector: Connector, url: str | None = None) -> str:

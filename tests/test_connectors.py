@@ -11,7 +11,7 @@ from registry.connectors.cerebras_models import CerebrasModelsConnector
 from registry.connectors.cohere_docs import CohereDocsConnector
 from registry.connectors.github_copilot_docs import GitHubCopilotDocsConnector
 from registry.connectors.google_gemini_docs import GoogleGeminiDocsConnector
-from registry.connectors.groq_docs import GroqDocsConnector
+from registry.connectors.groq_docs import GroqDocsConnector, detail_url
 from registry.connectors.hf_model_cards import HfModelCardsConnector
 from registry.connectors.huggingface import HuggingFaceConnector
 from registry.connectors.mistral_docs import MistralDocsConnector
@@ -240,20 +240,23 @@ def test_cohere_docs_emits_hash_only_document_and_source_native_offerings(fixtur
     assert all(o.source_provider_label == "Cohere" for o in offerings)
 
 
-def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir: Path) -> None:
+def test_groq_docs_crawls_detail_pages_for_documented_capabilities(fixtures_dir: Path) -> None:
     connector = GroqDocsConnector()
-    body = _body(fixtures_dir, connector)
-    records = connector.parse(body, observed_at="2026-07-30T00:00:00+00:00")
+    # The crawl (index -> per-model detail pages) only happens through the build orchestrator, which
+    # fetches the index, discovers the detail URLs, fetches those, and calls ``parse_all`` once.
+    result = build([connector], fixture_transport(fixtures_dir, [connector]), now="2026-07-30T00:00:00+00:00")
+    records = result.artifact.records
 
+    # One hash-only document per fetched page: the index plus each discovered model detail page.
     docs = [r for r in records if isinstance(r, DocumentRecord)]
-    assert len(docs) == 1
-    document = docs[0]
-    assert document.url == connector.url
-    assert document.revision is None
-    assert document.content_sha256 == sha256_hex(body)
-    assert document.retrieved_at == "2026-07-30T00:00:00+00:00"
-    assert document.redistribution_policy == "hash_and_facts_only"
-    assert document.trust_level == TrustLevel.OFFICIAL_MODEL_CARD_CLAIM
+    assert {d.url for d in docs} == {
+        connector.url,
+        detail_url("llama-3.3-70b-versatile"),
+        detail_url("openai/gpt-oss-120b"),
+        detail_url("groq/compound-mini"),
+        detail_url("retired-model-v1"),
+    }
+    assert all(d.redistribution_policy == "hash_and_facts_only" for d in docs)
 
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
     by_model = {offering.source_model_id: offering for offering in offerings}
@@ -263,11 +266,22 @@ def test_groq_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir
         "openai/gpt-oss-120b",
         "retired-model-v1",
     }
+    # Lifecycle facts still come from the index page.
     assert by_model["llama-3.3-70b-versatile"].availability_state == "available"
-    assert by_model["groq/compound-mini"].availability_state == "available"
-    assert by_model["openai/gpt-oss-120b"].availability_state == "available"
     assert by_model["retired-model-v1"].availability_state == "unavailable"
     assert all(o.source_provider_label == "Groq" for o in offerings)
+
+    def caps(model_id: str) -> tuple[bool | None, bool | None, bool | None]:
+        offering = by_model[model_id]
+        return offering.tool_use, offering.structured_output, offering.reasoning
+
+    # The detail card enumerates the model's capabilities: a listed capability is True, a known one
+    # absent from a present card is a documented False.
+    assert caps("llama-3.3-70b-versatile") == (True, True, False)
+    assert caps("openai/gpt-oss-120b") == (True, True, True)
+    assert caps("retired-model-v1") == (True, False, False)
+    # A detail page with no recognizable capability row leaves every field undocumented (None).
+    assert caps("groq/compound-mini") == (None, None, None)
 
 
 def test_mistral_docs_emits_hash_only_document_and_lifecycle_offerings(fixtures_dir: Path) -> None:

@@ -37,6 +37,19 @@ class Connector(Protocol):
         """
         ...
 
+    # Optional crawl hooks (duck-typed by the build orchestrator; not implemented by simple
+    # single-document connectors):
+    #
+    #   def discover(self, url: str, body: bytes) -> tuple[str, ...]:
+    #       Given a fetched seed body, return the follow-up detail URLs to also fetch.  A bounded,
+    #       structural expansion of the connector's own source (e.g. an index's model rows -> the
+    #       per-model detail pages), never open-ended link following.
+    #
+    #   def parse_all(self, bodies: dict[str, bytes | None], observed_at: str = "") -> list[Record]:
+    #       Parse across every URL the connector fetched (seed + discovered), keyed by URL; a failed
+    #       fetch maps to ``None``.  Called once per connector instead of the per-body ``parse`` when
+    #       present, so it can correlate the seed and its detail pages.
+
 
 def snapshot_from_fetch(connector: Connector, result: FetchResult) -> SourceSnapshotRecord:
     """Build the ``source_snapshot`` record that records this source's fetch outcome."""
