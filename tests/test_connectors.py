@@ -60,7 +60,7 @@ def test_models_dev_emits_model_and_offering(fixtures_dir: Path) -> None:
     assert opus.price is not None and opus.price.input_usd_per_mtok == 5.0
 
 
-def test_models_dev_emits_documented_tool_use_and_reasoning(fixtures_dir: Path) -> None:
+def test_models_dev_emits_documented_capabilities(fixtures_dir: Path) -> None:
     offerings = [
         r
         for r in ModelsDevConnector().parse(_body(fixtures_dir, ModelsDevConnector()))
