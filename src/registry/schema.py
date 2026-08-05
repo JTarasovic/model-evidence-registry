@@ -115,11 +115,13 @@ class ProviderOfferingRecord(_Record):
     max_output_tokens: int | None = None
     tool_use: bool | None = Field(
         default=None,
-        description="Source-documented tool/function-calling support. None = undocumented, never False.",
+        description="Source-documented tool/function-calling support. None = undocumented; never inferred — "
+        "a documented False is a real assertion, distinct from absence.",
     )
     reasoning: bool | None = Field(
         default=None,
-        description="Source-documented extended-reasoning/thinking support. None = undocumented, never False.",
+        description="Source-documented extended-reasoning/thinking support. None = undocumented; never inferred — "
+        "a documented False is a real assertion, distinct from absence.",
     )
     price: PriceObservation | None = None
     observed_at: str
