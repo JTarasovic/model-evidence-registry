@@ -19,6 +19,7 @@ from registry.connectors.mistral_docs import MistralDocsConnector
 from registry.connectors.models_dev import ModelsDevConnector
 from registry.connectors.openai_codex_docs import OpenAICodexDocsConnector
 from registry.connectors.openai_docs import OpenAIDocsConnector
+from registry.connectors.openrouter import OpenRouterConnector
 from registry.connectors.swebench import SweBenchConnector
 from registry.connectors.terminal_bench import TerminalBenchConnector
 from registry.fetch import sha256_hex
@@ -325,6 +326,44 @@ def test_cerebras_models_emits_hash_only_document_and_catalog_offerings(fixtures
     assert by_model["gpt-oss-120b"].price.input_usd_per_mtok == 0.35
     assert by_model["gpt-oss-120b"].price.output_usd_per_mtok == 0.75
     assert all(o.source_provider_label == "Cerebras" for o in offerings)
+
+    # capabilities map: documented positives pass through as True...
+    assert by_model["zai-glm-4.7"].tool_use is True
+    assert by_model["zai-glm-4.7"].reasoning is True
+    assert by_model["zai-glm-4.7"].structured_output is True
+    # ...a documented false is a real negative, distinct from absence...
+    assert by_model["gemma-4-31b"].tool_use is False
+    assert by_model["gemma-4-31b"].reasoning is False
+    assert by_model["gemma-4-31b"].structured_output is False
+    # ...and a model with no capabilities map stays undocumented (None), never inferred False.
+    assert by_model["gpt-oss-120b"].tool_use is None
+    assert by_model["gpt-oss-120b"].reasoning is None
+    assert by_model["gpt-oss-120b"].structured_output is None
+
+
+def test_openrouter_maps_supported_parameters_to_capabilities(fixtures_dir: Path) -> None:
+    offerings = [
+        r
+        for r in OpenRouterConnector().parse(_body(fixtures_dir, OpenRouterConnector()))
+        if isinstance(r, ProviderOfferingRecord)
+    ]
+    by_model = {o.source_model_id: o for o in offerings}
+    # Enumeration lists tools/reasoning/structured_outputs -> all True.
+    opus = by_model["anthropic/claude-opus-4"]
+    assert opus.tool_use is True
+    assert opus.reasoning is True
+    assert opus.structured_output is True
+    # supported_parameters is a complete per-model enumeration: a param absent from a listed set
+    # is a documented False, not unknown.
+    gpt5 = by_model["openai/gpt-5"]
+    assert gpt5.tool_use is True
+    assert gpt5.reasoning is False
+    assert gpt5.structured_output is False
+    # No supported_parameters documented at all -> undocumented (None), never inferred False.
+    llama = by_model["meta/llama-legacy"]
+    assert llama.tool_use is None
+    assert llama.reasoning is None
+    assert llama.structured_output is None
 
 
 def test_hf_model_cards_emit_revision_pinned_documents_without_inference_offerings(fixtures_dir: Path) -> None:

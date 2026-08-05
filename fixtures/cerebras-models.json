@@ -5,6 +5,7 @@
       "id": "zai-glm-4.7",
       "pricing": {"prompt": "0.00000225", "completion": "0.00000275"},
       "architecture": {"modality": "text"},
+      "capabilities": {"function_calling": true, "reasoning": true, "structured_outputs": true, "vision": false},
       "limits": {"max_context_length": 131072, "max_completion_tokens": 40960},
       "deprecated": false,
       "preview": true
@@ -13,6 +14,7 @@
       "id": "gemma-4-31b",
       "pricing": {"prompt": "0.00000099", "completion": "0.00000149"},
       "architecture": {"modality": "text+vision"},
+      "capabilities": {"function_calling": false, "reasoning": false, "structured_outputs": false, "vision": true},
       "limits": {"max_context_length": 131072, "max_completion_tokens": 40960},
       "deprecated": false,
       "preview": false

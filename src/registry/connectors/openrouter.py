@@ -3,6 +3,8 @@
 Parses ``https://openrouter.ai/api/v1/models`` (``{data: [{id, context_length, pricing:{prompt,
 completion}, architecture:{input_modalities}}]}``). Emits ``provider_offering`` availability/pricing/
 context evidence under provider ``openrouter`` (an aggregator observation), plus a ``model`` record.
+Capability booleans (tool use / reasoning / structured output) are derived from the per-model
+``supported_parameters`` enumeration.
 Pricing on OpenRouter is per-token USD; converted to per-Mtok for a like-for-like observation.
 """
 
@@ -29,6 +31,19 @@ def _per_mtok(per_token: str | float | None) -> float | None:
         return float(per_token) * 1_000_000
     except (TypeError, ValueError):
         return None
+
+
+def _supports(entry: dict, parameter: str) -> bool | None:
+    """Map one OpenRouter ``supported_parameters`` flag to a capability boolean.
+
+    ``supported_parameters`` is a per-model enumeration of the request parameters the model accepts,
+    so its presence documents the full set: the parameter's presence is ``True``, its absence from a
+    listed set is a documented ``False``. A missing/blank list is undocumented → ``None``.
+    """
+    supported = entry.get("supported_parameters")
+    if not isinstance(supported, list) or not supported:
+        return None
+    return parameter in supported
 
 
 class OpenRouterConnector:
@@ -62,6 +77,9 @@ class OpenRouterConnector:
                     availability_state="available",
                     modalities=sorted(set(architecture.get("input_modalities", []))),
                     context_window_tokens=entry.get("context_length"),
+                    tool_use=_supports(entry, "tools"),
+                    reasoning=_supports(entry, "reasoning"),
+                    structured_output=_supports(entry, "structured_outputs"),
                     price=PriceObservation(
                         input_usd_per_mtok=_per_mtok(pricing.get("prompt")),
                         output_usd_per_mtok=_per_mtok(pricing.get("completion")),

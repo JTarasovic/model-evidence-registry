@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = "0.3.0"
+SCHEMA_VERSION = "0.4.0"
 
 RECORD_TYPES = (
     "model",
@@ -122,6 +122,11 @@ class ProviderOfferingRecord(_Record):
         default=None,
         description="Source-documented extended-reasoning/thinking support. None = undocumented; never inferred — "
         "a documented False is a real assertion, distinct from absence.",
+    )
+    structured_output: bool | None = Field(
+        default=None,
+        description="Source-documented structured-output / JSON-schema-constrained decoding support. None = "
+        "undocumented; never inferred — a documented False is a real assertion, distinct from absence.",
     )
     price: PriceObservation | None = None
     observed_at: str
