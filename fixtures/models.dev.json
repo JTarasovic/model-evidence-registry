@@ -12,7 +12,8 @@
         "cost": { "input": 5.0, "output": 25.0 },
         "modalities": { "input": ["text", "image"], "output": ["text"] },
         "tool_call": true,
-        "reasoning": true
+        "reasoning": true,
+        "structured_output": true
       },
       "claude-haiku-3": {
         "id": "claude-haiku-3",
@@ -38,7 +39,8 @@
         "cost": { "input": 1.25, "output": 10.0 },
         "modalities": { "input": ["text", "image"], "output": ["text"] },
         "tool_call": true,
-        "reasoning": false
+        "reasoning": false,
+        "structured_output": false
       }
     }
   }

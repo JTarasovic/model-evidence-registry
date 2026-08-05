@@ -3,9 +3,9 @@
 Parses the ``https://models.dev/api.json`` shape: ``{providerId: {id, name, models: {modelId:
 {...}}}}``. Emits one ``model`` record and one ``provider_offering`` record per model. Capabilities
 that models.dev does not document (the key is absent) are represented as ``null`` in the published
-record (unknown), never emitted as ``False``. models.dev documents ``tool_call`` and ``reasoning``
-per model — a documented ``false`` from the source is still passed through as ``False``, distinct
-from an absent key.
+record (unknown), never emitted as ``False``. models.dev documents ``tool_call``, ``reasoning``,
+and ``structured_output`` per model — a documented ``false`` from the source is still passed
+through as ``False``, distinct from an absent key.
 
 Identifiers are emitted **source-native, verbatim** — the model's key as models.dev states it. Any
 cross-source identity linkage is the advisory crosswalk's job (``normalize.build_crosswalk``), never
@@ -75,6 +75,7 @@ class ModelsDevConnector:
                         max_output_tokens=limit.get("output"),
                         tool_use=model.get("tool_call"),
                         reasoning=model.get("reasoning"),
+                        structured_output=model.get("structured_output"),
                         price=PriceObservation(
                             input_usd_per_mtok=cost.get("input"),
                             output_usd_per_mtok=cost.get("output"),

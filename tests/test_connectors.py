@@ -69,13 +69,17 @@ def test_models_dev_emits_documented_tool_use_and_reasoning(fixtures_dir: Path) 
     opus = next(o for o in offerings if o.source_model_id == "claude-opus-4")
     assert opus.tool_use is True
     assert opus.reasoning is True
+    assert opus.structured_output is True
     gpt5 = next(o for o in offerings if o.source_model_id == "gpt-5")
     assert gpt5.tool_use is True
     assert gpt5.reasoning is False
+    # documented negative passes through as a real False, distinct from absence.
+    assert gpt5.structured_output is False
     # models.dev documents nothing for this model: undocumented stays None, never inferred False.
     haiku = next(o for o in offerings if o.source_model_id == "claude-haiku-3")
     assert haiku.tool_use is None
     assert haiku.reasoning is None
+    assert haiku.structured_output is None
 
 
 def test_anthropic_docs_emits_hash_only_document_and_direct_api_offerings(fixtures_dir: Path) -> None:
