@@ -2,7 +2,8 @@
 
 Cerebras publishes an unauthenticated ``/public/v1/models`` endpoint with its current inference
 offerings.  The connector retains the catalog's source-native model IDs and declared availability,
-modality, limits, and pricing facts, but emits only a hash for the source response.
+modality, limits, capability (tool use / reasoning / structured output), and pricing facts, but
+emits only a hash for the source response.
 """
 
 from __future__ import annotations
@@ -36,6 +37,17 @@ def _modalities(model: dict[str, Any]) -> list[str]:
     architecture = model.get("architecture")
     modality = architecture.get("modality") if isinstance(architecture, dict) else None
     return [modality] if isinstance(modality, str) and modality else []
+
+
+def _capability(model: dict[str, Any], key: str) -> bool | None:
+    """Read one source-documented capability boolean from Cerebras's ``capabilities`` map.
+
+    None when the map or the key is absent (undocumented); a documented ``false`` is kept as
+    ``False`` — a real negative assertion, distinct from absence.
+    """
+    capabilities = model.get("capabilities")
+    value = capabilities.get(key) if isinstance(capabilities, dict) else None
+    return value if isinstance(value, bool) else None
 
 
 class CerebrasModelsConnector:
@@ -85,6 +97,9 @@ class CerebrasModelsConnector:
                     modalities=_modalities(model),
                     context_window_tokens=_positive_int(limits.get("max_context_length")),
                     max_output_tokens=_positive_int(limits.get("max_completion_tokens")),
+                    tool_use=_capability(model, "function_calling"),
+                    reasoning=_capability(model, "reasoning"),
+                    structured_output=_capability(model, "structured_outputs"),
                     price=PriceObservation(
                         input_usd_per_mtok=input_price,
                         output_usd_per_mtok=output_price,
