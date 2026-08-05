@@ -45,9 +45,7 @@ class FixtureTransport:
     return_304_for: set[str] = field(default_factory=set)
 
     def request(self, url: str, headers: dict[str, str], *, timeout_seconds: float | None = None) -> RawResponse:
-        if url in self.return_304_for and (
-            "If-None-Match" in headers or "If-Modified-Since" in headers
-        ):
+        if url in self.return_304_for and ("If-None-Match" in headers or "If-Modified-Since" in headers):
             return RawResponse(status=304)
         body = (self.fixtures_dir / self.url_to_fixture[url]).read_bytes()
         return RawResponse(
@@ -79,9 +77,7 @@ def fetch_policy_for(connector: Connector) -> FetchPolicy:
     return declared.validated()
 
 
-def shared_source_policies(
-    connectors: Sequence[Connector], policies: Sequence[FetchPolicy]
-) -> list[FetchPolicy]:
+def shared_source_policies(connectors: Sequence[Connector], policies: Sequence[FetchPolicy]) -> list[FetchPolicy]:
     """Apply one conservative set of rate limits to each declared source key.
 
     Multiple endpoints may deliberately share a source key while having different request
@@ -289,8 +285,7 @@ def build(
         parse_all = getattr(connector, "parse_all", None)
         if callable(parse_all):
             bodies = {
-                url: (result.body if result.outcome in ("ok", "not_modified") else None)
-                for url, result in fetched
+                url: (result.body if result.outcome in ("ok", "not_modified") else None) for url, result in fetched
             }
             if any(body for body in bodies.values()):
                 try:

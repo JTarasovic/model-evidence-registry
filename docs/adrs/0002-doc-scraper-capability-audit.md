@@ -48,3 +48,24 @@ Tool use and structured output are not stated in either table and stay `None`. S
 For every other doc scraper the live source does not expose a per-model capability field a targeted
 rule can extract reliably, so no capability mapping is added; this is a valid, recorded outcome, not
 a deferred TODO. If a source later adds a stable per-model capability table, revisit that connector.
+
+## Addendum (2026-08-05): per-model detail-page crawl
+
+The audit above only checked each connector's single **index** page. Several providers publish
+capability signal on separate **per-model detail pages** instead. To reach it without hardcoding a
+model roster, the build orchestrator gained an optional two-phase crawl (`discover(url, body)` →
+follow-up URLs, `parse_all({url: body})` → records): a connector's live index enumerates the models,
+the build fetches each model's detail page under the same per-source rate limit, and `parse_all`
+correlates them. Detail pages were then checked live (2026-08-05):
+
+| Connector | Per-model detail page | Reliably extractable? | Action |
+|---|---|---|---|
+| `groq_docs` | `console.groq.com/docs/model/<id>` | **Yes** — a CAPABILITIES card enumerates supported capabilities as `/docs/{tool-use,structured-outputs,reasoning}` links (server-rendered). | **Crawl + map `tool_use` / `structured_output` / `reasoning`** |
+| `openai_docs` | `developers.openai.com/api/docs/models/<id>` | No — the per-model capability matrix is client-rendered; raw HTML holds only left-nav chrome (`function_calling` / `structured_output` appear as sidebar links, not model facts). | Record only |
+| `google_gemini_docs` | `ai.google.dev/gemini-api/docs/models` | No — every `Function calling` / `Structured outputs` / `Thinking` token in the page is `devsite` left-nav. The structured per-model signal (`supportedGenerationMethods`, `thinking`) lives only in the **authenticated** `models.list` API, which is out of scope for a keyless doc scraper. | Record only |
+| `cohere_docs` | `docs.cohere.com/docs/<model>.md` | No — capabilities are marketing prose ("excels at tool use, RAG, agents…"), not a per-model boolean matrix; every Command model claims tool use and none states a documented negative. | Record only |
+
+For `groq_docs` the CAPABILITIES card is a complete enumeration of the model's capabilities: a
+listed capability is `True`, a known capability absent from a present card is a documented `False`,
+and a detail page with no recognizable card leaves every field `None`. The crawl infrastructure is
+general and available to any future connector whose source splits capabilities onto detail pages.
