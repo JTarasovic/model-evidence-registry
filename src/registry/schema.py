@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = "0.3.0"
 
 RECORD_TYPES = (
     "model",
@@ -113,6 +113,14 @@ class ProviderOfferingRecord(_Record):
     modalities: list[str] = Field(default_factory=list)
     context_window_tokens: int | None = None
     max_output_tokens: int | None = None
+    tool_use: bool | None = Field(
+        default=None,
+        description="Source-documented tool/function-calling support. None = undocumented, never False.",
+    )
+    reasoning: bool | None = Field(
+        default=None,
+        description="Source-documented extended-reasoning/thinking support. None = undocumented, never False.",
+    )
     price: PriceObservation | None = None
     observed_at: str
 

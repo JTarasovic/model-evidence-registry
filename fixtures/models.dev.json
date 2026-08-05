@@ -10,6 +10,17 @@
         "release_date": "2026-05-01",
         "limit": { "context": 1000000, "output": 64000 },
         "cost": { "input": 5.0, "output": 25.0 },
+        "modalities": { "input": ["text", "image"], "output": ["text"] },
+        "tool_call": true,
+        "reasoning": true
+      },
+      "claude-haiku-3": {
+        "id": "claude-haiku-3",
+        "developer": "Anthropic",
+        "family": "claude",
+        "release_date": "2024-03-01",
+        "limit": { "context": 200000, "output": 4096 },
+        "cost": { "input": 0.25, "output": 1.25 },
         "modalities": { "input": ["text", "image"], "output": ["text"] }
       }
     }
@@ -25,7 +36,9 @@
         "release_date": "2026-03-01",
         "limit": { "context": 400000, "output": 128000 },
         "cost": { "input": 1.25, "output": 10.0 },
-        "modalities": { "input": ["text", "image"], "output": ["text"] }
+        "modalities": { "input": ["text", "image"], "output": ["text"] },
+        "tool_call": true,
+        "reasoning": false
       }
     }
   }

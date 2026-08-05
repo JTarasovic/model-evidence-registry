@@ -53,10 +53,28 @@ def test_models_dev_emits_model_and_offering(fixtures_dir: Path) -> None:
     models = [r for r in records if isinstance(r, ModelRecord)]
     offerings = [r for r in records if isinstance(r, ProviderOfferingRecord)]
     # Source-native ids, verbatim — no canonicalization mutation in the connector.
-    assert {m.source_model_id for m in models} == {"claude-opus-4", "gpt-5"}
+    assert {m.source_model_id for m in models} == {"claude-opus-4", "claude-haiku-3", "gpt-5"}
     opus = next(o for o in offerings if o.source_model_id == "claude-opus-4")
     assert opus.context_window_tokens == 1000000
     assert opus.price is not None and opus.price.input_usd_per_mtok == 5.0
+
+
+def test_models_dev_emits_documented_tool_use_and_reasoning(fixtures_dir: Path) -> None:
+    offerings = [
+        r
+        for r in ModelsDevConnector().parse(_body(fixtures_dir, ModelsDevConnector()))
+        if isinstance(r, ProviderOfferingRecord)
+    ]
+    opus = next(o for o in offerings if o.source_model_id == "claude-opus-4")
+    assert opus.tool_use is True
+    assert opus.reasoning is True
+    gpt5 = next(o for o in offerings if o.source_model_id == "gpt-5")
+    assert gpt5.tool_use is True
+    assert gpt5.reasoning is False
+    # models.dev documents nothing for this model: undocumented stays None, never inferred False.
+    haiku = next(o for o in offerings if o.source_model_id == "claude-haiku-3")
+    assert haiku.tool_use is None
+    assert haiku.reasoning is None
 
 
 def test_anthropic_docs_emits_hash_only_document_and_direct_api_offerings(fixtures_dir: Path) -> None:
