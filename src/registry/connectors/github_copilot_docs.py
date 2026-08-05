@@ -14,11 +14,35 @@ from registry.fetch import FetchPolicy, sha256_hex
 from registry.schema import DocumentRecord, ProviderOfferingRecord, Record, TrustLevel
 
 COPILOT_MODELS_URL = "https://docs.github.com/en/copilot/reference/ai-models/supported-models.md"
-_CATALOG_SECTION_RE = re.compile(
-    r"^## Supported AI models in Copilot\s*$([\s\S]*?)(?=^## |\Z)", re.MULTILINE
-)
+_CATALOG_SECTION_RE = re.compile(r"^## Supported AI models in Copilot\s*$([\s\S]*?)(?=^## |\Z)", re.MULTILINE)
+# A separate "Models with extended capabilities" table marks a "Configurable reasoning" column per
+# model with a Supported / Not supported octicon. It covers only the latest models, so absence from
+# it leaves reasoning undocumented (None) rather than a documented negative.
+_EXTENDED_SECTION_RE = re.compile(r"^## Models with extended capabilities\s*$([\s\S]*?)(?=^## |\Z)", re.MULTILINE)
 _TABLE_ROW_RE = re.compile(r"^\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*$", re.MULTILINE)
 _FOOTNOTE_RE = re.compile(r"\[\^[^\]]+\]")
+
+
+def _reasoning_from_cell(cell: str) -> bool | None:
+    """Read a "Configurable reasoning" octicon: its aria-label is the documented Yes/No."""
+    if 'aria-label="Supported"' in cell:
+        return True
+    if 'aria-label="Not supported"' in cell:
+        return False
+    return None
+
+
+def _extended_reasoning(text: str) -> dict[str, bool | None]:
+    section_match = _EXTENDED_SECTION_RE.search(text)
+    if section_match is None:
+        return {}
+    reasoning_by_name: dict[str, bool | None] = {}
+    for model_name, _context_cell, reasoning_cell in _TABLE_ROW_RE.findall(section_match.group(1)):
+        model_name = _FOOTNOTE_RE.sub("", model_name).strip()
+        if not model_name or model_name == "Model" or set(model_name) == {"-"}:
+            continue
+        reasoning_by_name[model_name] = _reasoning_from_cell(reasoning_cell)
+    return reasoning_by_name
 
 
 class GitHubCopilotDocsConnector:
@@ -38,6 +62,7 @@ class GitHubCopilotDocsConnector:
         if section_match is None:
             raise ValueError("GitHub Copilot models document has no catalogue section")
 
+        reasoning_by_name = _extended_reasoning(text)
         offerings: list[ProviderOfferingRecord] = []
         for model_name, provider, release_status in _TABLE_ROW_RE.findall(section_match.group(1)):
             model_name = _FOOTNOTE_RE.sub("", model_name).strip()
@@ -58,6 +83,7 @@ class GitHubCopilotDocsConnector:
                     service_id="github-copilot",
                     source_provider_label=provider,
                     availability_state="available",
+                    reasoning=reasoning_by_name.get(model_name),
                     observed_at=observed_at,
                 )
             )

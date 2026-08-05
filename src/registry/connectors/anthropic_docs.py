@@ -74,16 +74,29 @@ class AnthropicDocsConnector:
 
         # Only the provider's direct API identifiers are offerings here. Bedrock and Vertex IDs in
         # the same document remain their own provider offerings and must not be relabelled Anthropic.
-        model_ids = sorted(
-            {
-                cell.strip()
-                for table in parser.tables
-                for row in table
-                if row and row[0].casefold() == "claude api id"
-                for cell in row[1:]
-                if cell.strip()
-            }
-        )
+        #
+        # The overview is a feature-by-model comparison: the "Claude API ID" row names each column's
+        # model, and the "Extended thinking" / "Adaptive thinking" rows document reasoning support per
+        # column. A model reasons when either thinking row says "Yes"; when a table carries those rows
+        # every column is a documented Yes/No, so a model with "No" in both is a documented negative
+        # (real False), distinct from a table without any thinking row, which leaves reasoning None.
+        # Tool use and structured output are not stated in this table, so both stay None here.
+        reasoning_by_id: dict[str, bool | None] = {}
+        for table in parser.tables:
+            id_row = next((row for row in table if row and row[0].casefold() == "claude api id"), None)
+            if id_row is None:
+                continue
+            thinking_rows = [row for row in table if row and "thinking" in row[0].casefold()]
+            for column in range(1, len(id_row)):
+                model_id = id_row[column].strip()
+                if not model_id:
+                    continue
+                cells = [row[column].strip() for row in thinking_rows if column < len(row) and row[column].strip()]
+                reasoning = any(cell.casefold().startswith("yes") for cell in cells) if cells else None
+                # First non-None documented value wins if an id somehow recurs across tables.
+                if model_id not in reasoning_by_id or reasoning_by_id[model_id] is None:
+                    reasoning_by_id[model_id] = reasoning
+        model_ids = sorted(reasoning_by_id)
         revision_match = _BUILD_ID_RE.search(text)
         records: list[Record] = [
             DocumentRecord(
@@ -105,6 +118,7 @@ class AnthropicDocsConnector:
                 service_id="anthropic-api",
                 source_provider_label="Anthropic",
                 availability_state="available",
+                reasoning=reasoning_by_id[model_id],
                 observed_at=observed_at,
             )
             for model_id in model_ids
