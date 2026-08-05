@@ -180,6 +180,14 @@ def test_github_copilot_docs_emits_product_scoped_offerings(fixtures_dir: Path) 
     assert {offering.source_provider_label for offering in offerings} == {"OpenAI", "Anthropic", "Google"}
     assert all(offering.service_id == "github-copilot" for offering in offerings)
 
+    # The "Models with extended capabilities" table documents a "Configurable reasoning" octicon per
+    # model: Supported -> True, Not supported -> a documented False, absent from that table -> None.
+    by_id = {offering.source_model_id: offering for offering in offerings}
+    assert by_id["GPT-5.6 Sol"].reasoning is True
+    assert by_id["Claude Opus 4.8 (fast mode) (preview)"].reasoning is False
+    assert by_id["Gemini 3.1 Pro"].reasoning is None  # not listed in the extended-capabilities table
+    assert all(offering.tool_use is None and offering.structured_output is None for offering in offerings)
+
 
 def test_google_gemini_docs_emits_hash_only_document_and_current_api_offerings(fixtures_dir: Path) -> None:
     connector = GoogleGeminiDocsConnector()
