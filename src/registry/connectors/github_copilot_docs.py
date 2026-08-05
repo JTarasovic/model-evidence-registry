@@ -1,7 +1,7 @@
 """GitHub Copilot's official, public model-catalog documentation connector.
 
-This is intentionally separate from :mod:`registry.connectors.github_models`: GitHub Models is
-a distinct API/playground product, while this document describes models offered by GitHub Copilot.
+This is intentionally scoped to GitHub Copilot's model catalog, distinct from the retired GitHub
+Models API/playground product; this document describes models offered by GitHub Copilot.
 The page publishes presentation names rather than a separate machine-readable Copilot model id, so
 those names are retained verbatim as the source-native identifiers.
 """
